@@ -13,6 +13,7 @@
 //  - numbers from different platforms, or fetched far apart in time, are flagged, not silently mixed.
 import type { PartKey, PartStatus } from "./club-capture";
 import { dataAgeDays, formatUnix, isObj, num, partOf, str, PART_LABEL, type Bi } from "./data-utils";
+import { readRecentMatches, type RecentMatches } from "./recent-matches";
 
 /** A single club is allowed: it shows that club's own statistics and members. */
 export const MIN_CLUBS = 1;
@@ -109,6 +110,8 @@ export interface ClubProfile {
   winStreak: number | null;
   unbeatenStreak: number | null;
   recentForm: RecentForm | null;
+  /** The newest league matches (up to 10) with per-member numbers, oldest first. Null when matches were not loaded. */
+  recent: RecentMatches | null;
   squad: SquadSummary | null;
   /** Every member, most games first. Cut for display and for the AI digest, never here. */
   members: MemberRow[];
@@ -438,6 +441,7 @@ function profileOf(inp: ClubInput): { profile: ClubProfile; players: PlayerRec[]
       record: readRecord(inp.data),
       ...readOverallExtras(inp.data),
       recentForm: readRecentForm(inp.data, inp.clubId),
+      recent: readRecentMatches(inp.data, inp.clubId),
       squad: squadOf(players),
       members: memberRows(players, readCareer(inp.data)),
       parts,

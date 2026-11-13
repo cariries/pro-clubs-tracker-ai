@@ -5,6 +5,14 @@ import { CHARTS } from "@/lib/ui-text";
 // Draws chart specs from lib/charts.ts as grouped horizontal bars. Plain HTML and CSS (no library, no SVG from a
 // model): the colours are theme tokens, so light and dark both work, and each bar has its value as text, so nothing
 // depends on colour alone.
+/** The tag after a bar's value. Results show as a word in the reader's language; a number is a games count. */
+function noteText(note: string | undefined, lang: Lang): string {
+  if (!note) return "";
+  if (note === "*") return " *";
+  if (note === "W" || note === "D" || note === "L") return ` (${pick(CHARTS[note], lang)})`;
+  return ` (${fill(pick(CHARTS.games, lang), { n: note })})`;
+}
+
 export default function ChartView({ charts, lang }: { charts: ChartSpec[]; lang: Lang }) {
   if (charts.length === 0) return null;
   return (
@@ -44,8 +52,7 @@ export default function ChartView({ charts, lang }: { charts: ChartSpec[]; lang:
                       <span className="bval">
                         {bar.value}
                         {s.unit}
-                        {bar.note && bar.note !== "*" ? ` (${fill(pick(CHARTS.games, lang), { n: bar.note })})` : ""}
-                        {bar.note === "*" ? " *" : ""}
+                        {noteText(bar.note, lang)}
                       </span>
                     </div>
                   );

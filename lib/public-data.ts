@@ -5,8 +5,8 @@ import { decideSearch, type SearchOutcome } from "./public-clubs";
 import type { EaFetchResult } from "./ea-fetch";
 import { captureClub, type CaptureResult } from "./club-capture";
 
-/** The parts the public club page shows. Matches and playoffs are left out on purpose: fewer EA calls per view. */
-export const PROFILE_PARTS = ["clubInfo", "overallStats", "memberStats", "memberCareerStats"] as const;
+/** The parts the club page and Ask AI load: four season parts plus the newest league matches (for recent-form charts). Playoffs are left out on purpose. */
+export const PROFILE_PARTS = ["clubInfo", "overallStats", "memberStats", "memberCareerStats", "leagueMatches"] as const;
 
 export interface PublicDeps extends GateDeps {
   fetchEa(endpoint: string, params: URLSearchParams): Promise<EaFetchResult>;
@@ -42,7 +42,7 @@ export type ProfileResult =
   | { kind: "ea_error"; blocked: boolean }
   | { kind: "not_found" };
 
-/** Loads a club's public profile: four EA calls, after the limits and the breaker. Nothing is stored. */
+/** Loads a club's public profile: five EA calls, after the limits and the breaker. Nothing is stored. */
 export async function loadProfile(deps: PublicDeps, visitor: string, clubId: string, platform: string): Promise<ProfileResult> {
   const gate = await admitPublic(deps, visitor, EA_CALLS.profile);
   if (!gate.ok) return { kind: "refused", gate };

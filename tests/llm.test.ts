@@ -287,7 +287,17 @@ describe("prompt building", () => {
 
   it("tells the model there is no time dimension and what a null rank means", () => {
     const p = buildPrompt({}, "q", "en");
-    expect(p.system).toMatch(/Do not describe trends or improvement over time/);
+    // no long-term trends (nothing is stored over weeks) ...
+    expect(p.system).toMatch(/Do not describe long-term trends or improvement over weeks or seasons/);
+    // ... with ONE exception: the newest league matches, called "in the last N matches", never "this season"
+    expect(p.system).toMatch(/recentMatches/);
+    expect(p.system).toMatch(/in the last N matches/);
+    expect(p.system).toMatch(/never "this season" or "over time"/);
+    expect(p.system).toMatch(/small sample is noisy/);
+    expect(p.system).toMatch(/did not play it/);
+    expect(p.system).toMatch(/opposite orders/);
+    expect(p.system).toMatch(/chartsShown/);
+    expect(p.system).toMatch(/do not invent a chart/);
     expect(p.system).toMatch(/rank null was NOT ranked/);
     expect(p.system).toMatch(/ranked false has too few games/);
     expect(p.system).toMatch(/If the mode is one club/);

@@ -179,4 +179,7 @@ export const CHARTS = {
   title: { en: "Charts (drawn by the app from the numbers above)", zh: "圖表(由程式根據上面嘅數字繪製)" },
   note: { en: "These charts use no AI. Every bar is a number computed from EA's data.", zh: "呢啲圖表唔經 AI,每條長條都係根據 EA 資料計算出嚟嘅數字。" },
   games: { en: "{n} games", zh: "{n} 場" },
+  W: { en: "win", zh: "勝" },
+  D: { en: "draw", zh: "和" },
+  L: { en: "loss", zh: "負" },
 } satisfies Record<string, Bi>;

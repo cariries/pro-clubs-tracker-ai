@@ -10,7 +10,7 @@ import { openBreaker, realGate } from "@/lib/public-db";
 import { formatUnix } from "@/lib/data-utils";
 import Stat from "@/components/Stat";
 import ChartView from "@/components/ChartView";
-import { singleClubCharts } from "@/lib/charts";
+import { chartsFor } from "@/lib/charts";
 import { getLang } from "@/lib/lang-server";
 import { fill, pick } from "@/lib/i18n";
 import { CLUB } from "@/lib/ui-text";
@@ -132,7 +132,7 @@ export default async function ClubPage({ params, searchParams }: { params: Promi
         </p>
       </section>
 
-      <ChartView charts={singleClubCharts(p)} lang={lang} />
+      <ChartView charts={chartsFor({ mode: "single", clubs: [p], metrics: [] })} lang={lang} />
 
       <section className="card">
         <h3>{pick(CLUB.askTitle, lang)}</h3>

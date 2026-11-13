@@ -14,8 +14,8 @@ export const PUBLIC_LIMITS = {
   breakerSeconds: 300,
 } as const;
 
-/** A search is one EA call; a club profile is up to this many (info, totals, members, matches). */
-export const EA_CALLS = { search: 1, profile: 4 } as const;
+/** A search is one EA call; a club profile is this many (info, totals, members, career, league matches). tests/public.test.ts pins it to PROFILE_PARTS. */
+export const EA_CALLS = { search: 1, profile: 5 } as const;
 
 export const BREAKER_KEY = "public:ea-blocked";
 

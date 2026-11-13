@@ -3,6 +3,7 @@
 // draws them. A series with no data is dropped, so the page never draws an empty chart.
 import { MEMBERS_SINGLE, type ClubProfile, type MemberRow, type MetricComparison } from "./club-compare";
 import type { Bi } from "./i18n";
+import { formString, trendMembers, type RecentMatches } from "./recent-matches";
 
 /** Most members shown in one member chart (a longer list is unreadable on a phone). */
 export const CHART_MEMBERS_MAX = 12;
@@ -10,7 +11,7 @@ export const CHART_MEMBERS_MAX = 12;
 export interface ChartBar {
   label: string;
   value: number;
-  /** Shown beside the value, e.g. "(3 games)". Optional. */
+  /** A small tag beside the value. "*" = too few games to rank; "W", "D" or "L" = the match result; a number = games played. */
   note?: string;
 }
 
@@ -128,10 +129,74 @@ export function compareClubsCharts(clubs: readonly ClubProfile[], metrics: reado
   return out;
 }
 
+/**
+ * Recent league matches for ONE club: the result of each match, goals scored and conceded in each, and (for the members
+ * with enough appearances) their rating and goal contributions in each. The category is the match number (1 = oldest of
+ * the window), so reading left to right goes forward in time.
+ */
+export function recentMatchCharts(clubName: string, recent: RecentMatches | null, withMembers: boolean): ChartSpec[] {
+  if (!recent || recent.matches.length === 0) return [];
+  const n = recent.matches.length;
+  const matchLabel = (i: number) => `#${i + 1}`;
+  const out: ChartSpec[] = [];
+
+  const scored = recent.matches.map((m, i) => ({ label: matchLabel(i), value: m.goalsFor, note: m.outcome }));
+  const conceded = recent.matches.map((m, i) => ({ label: matchLabel(i), value: m.goalsAgainst, note: m.outcome }));
+  const peak = Math.max(...scored.map((b) => b.value), ...conceded.map((b) => b.value));
+  out.push({
+    key: "recent-goals",
+    title: { en: `${clubName}: goals in the last ${n} league matches`, zh: `${clubName}:最近 ${n} 場聯賽入球` },
+    series: [
+      { name: { en: "Scored", zh: "入球" }, unit: "", bars: scored },
+      { name: { en: "Conceded", zh: "失球" }, unit: "", bars: conceded },
+    ],
+    max: niceMax([peak]),
+    footnote: { en: `Form, oldest to newest: ${formString(recent)} (W win, D draw, L loss). #1 is the oldest match shown.`, zh: `戰績(由舊到新):${formString(recent).replace(/W/g, "勝").replace(/D/g, "和").replace(/L/g, "負")}。#1 係所示最舊一場。` },
+  });
+
+  if (!withMembers) return out;
+  const members = trendMembers(recent);
+  if (members.length === 0) return out;
+  // Rating per match for the busiest members. A match the member did not play has NO bar (a gap), not a zero.
+  const series: ChartSeries[] = members.map((m) => ({
+    name: { en: m.name, zh: m.name },
+    unit: "",
+    bars: m.matches.filter((x) => finite(x.rating)).map((x) => ({ label: matchLabel(x.matchNo - 1), value: x.rating as number })),
+  })).filter((s) => s.bars.length > 0);
+  if (series.length > 0) {
+    out.push({
+      key: "recent-ratings",
+      title: { en: "Match rating of the busiest members", zh: "出場最多嘅球員每場評分" },
+      series,
+      max: 10,
+      footnote: { en: "A match with no bar means the member did not play it. Ratings are EA's, out of 10.", zh: "冇長條嘅場次代表該球員冇出場。評分由 EA 提供,滿分 10。" },
+    });
+  }
+  const contrib: ChartSeries[] = members.map((m) => ({
+    name: { en: m.name, zh: m.name },
+    unit: "",
+    bars: m.matches.filter((x) => finite(x.goals) || finite(x.assists)).map((x) => ({ label: matchLabel(x.matchNo - 1), value: (x.goals ?? 0) + (x.assists ?? 0) })),
+  })).filter((s) => s.bars.some((b) => b.value > 0));
+  if (contrib.length > 0) {
+    out.push({
+      key: "recent-contributions",
+      title: { en: "Goals plus assists per match, busiest members", zh: "出場最多嘅球員每場入球加助攻" },
+      series: contrib,
+      max: niceMax(contrib.flatMap((s) => s.bars.map((b) => b.value))),
+    });
+  }
+  return out;
+}
+
 /** The charts for a comparison, whichever mode it is in. */
 export function chartsFor(c: { mode: "single" | "compare"; clubs: readonly ClubProfile[]; metrics: readonly MetricComparison[] }): ChartSpec[] {
-  if (c.mode === "single") return c.clubs[0] ? singleClubCharts(c.clubs[0]) : [];
-  return compareClubsCharts(c.clubs, c.metrics);
+  if (c.mode === "single") {
+    const club = c.clubs[0];
+    if (!club) return [];
+    return [...singleClubCharts(club), ...recentMatchCharts(club.name ?? club.label, club.recent, true)];
+  }
+  // several clubs: one goals-per-match chart each (member lines would be unreadable side by side)
+  return [...compareClubsCharts(c.clubs, c.metrics), ...c.clubs.flatMap((club) => recentMatchCharts(club.name ?? club.label, club.recent, false))];
 }
 
 /** Width of a bar as a percentage of its track, clamped to 0..100, with a small floor so a real non-zero value stays visible. */

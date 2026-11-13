@@ -121,7 +121,7 @@ describe("admitPublic: breaker, then per visitor, then the global budget", () =>
   it("lets a visitor through and charges one global unit per EA call", async () => {
     const g = gate();
     expect(await admitPublic(g.deps, "1.1.1.1", EA_CALLS.profile)).toEqual({ ok: true });
-    expect(g.calls.filter((c) => c.startsWith("public:global-ea"))).toHaveLength(4);
+    expect(g.calls.filter((c) => c.startsWith("public:global-ea"))).toHaveLength(5);
     expect(g.calls[0]).toBe(`public:visitor:1.1.1.1|${PUBLIC_LIMITS.perVisitor.limit}|${PUBLIC_LIMITS.perVisitor.windowSec}`);
   });
   it("the open breaker refuses first and touches no counter", async () => {
@@ -215,13 +215,19 @@ describe("public data loaders (EA and the database are fakes)", () => {
     if (forced) return forced;
     return (await mockEa(baseEa())(endpoint, params)) as EaFetchResult;
   };
-  it("a profile fetches ONLY the four parts it shows, never matches", async () => {
+  it("a profile fetches five parts: the four season parts plus the newest 10 LEAGUE matches, and never playoffs or friendlies", async () => {
     const seen: string[] = [];
-    const { d } = deps({ fetchEa: async (e, p) => { seen.push(e); return profileEa()(e, p); } });
+    const urls: string[] = [];
+    const { d } = deps({ fetchEa: async (e, p) => { seen.push(e); urls.push(`${e}?${p}`); return profileEa()(e, p); } });
     const r = await loadProfile(d, "v", "914493", "common-gen5");
     expect(r.kind).toBe("ok");
-    expect(seen.sort()).toEqual(["clubInfo", "memberCareerStats", "memberStats", "overallStats"]);
-    expect([...PROFILE_PARTS]).toHaveLength(EA_CALLS.profile);
+    expect(seen.sort()).toEqual(["clubInfo", "matches", "memberCareerStats", "memberStats", "overallStats"]);
+    const m = urls.filter((u) => u.startsWith("matches?"));
+    expect(m).toHaveLength(1);
+    expect(m[0]).toContain("matchType=leagueMatch");
+    expect(m[0]).toContain("maxResultCount=10");
+    expect(urls.join(" ")).not.toMatch(/playoffMatch|friendlyMatch/);
+    expect([...PROFILE_PARTS]).toHaveLength(EA_CALLS.profile); // the rate-limit charge matches the number of EA calls
   });
   it("an unknown club (no club info, no totals) is not found", async () => {
     const empty = (endpoint: string): EaFetchResult => ({ ok: true, endpoint, data: [], parsed: [], parseError: null });

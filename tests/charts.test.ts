@@ -159,8 +159,10 @@ describe("gaps the first mutation round found", () => {
 
 describe("chartsFor picks the right set for the mode", () => {
   it("one club gets member charts, several get club charts", () => {
-    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-rates"]);
-    expect(chartsFor(three()).map((x) => x.key)).toEqual(["clubs-win-rate", "clubs-goals"]);
+    // the stock invented clubs carry league match SCORES but no per-member match lines, so the recent-goals chart
+    // appears and the per-member match charts do not
+    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-rates", "recent-goals"]);
+    expect(chartsFor(three()).map((x) => x.key)).toEqual(["clubs-win-rate", "clubs-goals", "recent-goals", "recent-goals", "recent-goals"]);
   });
   it("does not mutate the comparison it reads", () => {
     const c = three();
@@ -200,7 +202,7 @@ describe("wording and wiring", () => {
   });
   it("the Ask AI page and the club page both draw the charts", () => {
     expect(read("app/analysis/AnalysisClient.tsx")).toMatch(/<ChartView charts=\{chartsFor\(c\)\}/);
-    expect(read("app/club/[clubId]/page.tsx")).toMatch(/<ChartView charts=\{singleClubCharts\(p\)\}/);
+    expect(read("app/club/[clubId]/page.tsx")).toMatch(/<ChartView charts=\{chartsFor\(\{ mode: "single", clubs: \[p\], metrics: \[\] \}\)\}/);
   });
   it("charts use no model output: the chart module imports nothing from the LLM code", () => {
     expect(read("lib/charts.ts")).not.toMatch(/from "\.\/llm|from "@\/lib\/llm/);
@@ -208,5 +210,187 @@ describe("wording and wiring", () => {
   });
   it("chart widths come only from computed values", () => {
     expect(read("components/ChartView.tsx")).toMatch(/barWidthPct\(bar\.value, c\.max\)/);
+  });
+});
+
+import { recentMatchCharts } from "@/lib/charts";
+import { readRecentMatches } from "@/lib/recent-matches";
+import type { ClubProfile } from "@/lib/club-compare";
+
+describe("recent league matches: club and member charts", () => {
+  const ME = "100";
+  const mk = (i: number, gf: number, ga: number, players: Array<Record<string, unknown>>) => ({
+    matchId: `m${i}`,
+    timestamp: 1_800_000_000 + i * 3600,
+    clubs: { [ME]: { goals: gf, goalsAgainst: ga, name: "Mine" }, "200": { goals: ga, goalsAgainst: gf, name: `Opp${i}` } },
+    players: { [ME]: players, "200": [] },
+  });
+  const p = (name: string, goals: number, assists: number, rating: number) => ({ name, goals, assists, rating, passesMade: 8, passAttempts: 10 });
+  const matches = [
+    mk(1, 2, 0, [p("Ace", 1, 0, 8), p("Wing", 0, 1, 7)]),
+    mk(2, 0, 1, [p("Ace", 0, 0, 6)]),
+    mk(3, 3, 3, [p("Ace", 2, 1, 9), p("Wing", 1, 0, 7.5), p("Rookie", 0, 0, 6)]),
+    mk(4, 1, 0, [p("Ace", 1, 0, 8), p("Wing", 0, 0, 7)]),
+  ];
+  const recent = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: matches } } }, ME);
+
+  it("draws goals scored and conceded for every match, oldest first, tagged with the result", () => {
+    const g = recentMatchCharts("Mine", recent, false)[0];
+    expect(g.key).toBe("recent-goals");
+    expect(g.series[0].bars.map((b) => b.label)).toEqual(["#1", "#2", "#3", "#4"]);
+    expect(g.series[0].bars.map((b) => b.value)).toEqual([2, 0, 3, 1]);
+    expect(g.series[1].bars.map((b) => b.value)).toEqual([0, 1, 3, 0]);
+    expect(g.series[0].bars.map((b) => b.note)).toEqual(["W", "L", "D", "W"]);
+  });
+  it("the title and footnote say how many matches, the form oldest to newest, in both languages", () => {
+    const g = recentMatchCharts("Mine", recent, false)[0];
+    expect(g.title.en).toBe("Mine: goals in the last 4 league matches");
+    expect(g.title.zh).toBe("Mine:最近 4 場聯賽入球");
+    expect(g.footnote?.en).toContain("WLDW");
+    expect(g.footnote?.zh).toContain("勝負和勝");
+  });
+  it("the goals scale covers the biggest bar", () => {
+    const g = recentMatchCharts("Mine", recent, false)[0];
+    expect(g.max).toBeGreaterThanOrEqual(3);
+  });
+  it("member charts: rating per match for members with enough appearances, a skipped match is a GAP not a zero", () => {
+    const charts = recentMatchCharts("Mine", recent, true);
+    const rating = charts.find((c) => c.key === "recent-ratings")!;
+    expect(rating.max).toBe(10);
+    expect(rating.series.map((s) => s.name.en)).toEqual(["Ace", "Wing"]); // Rookie played once
+    const wing = rating.series.find((s) => s.name.en === "Wing")!;
+    expect(wing.bars.map((b) => b.label)).toEqual(["#1", "#3", "#4"]); // sat out #2
+    expect(wing.bars.map((b) => b.value)).toEqual([7, 7.5, 7]);
+    const ace = rating.series.find((s) => s.name.en === "Ace")!;
+    expect(ace.bars.map((b) => b.value)).toEqual([8, 6, 9, 8]);
+  });
+  it("a match the member played but EA gave NO rating for is left out of the rating chart, not drawn as a rating of 0", () => {
+    const rows = [1, 2, 3, 4].map((i) => mk(i, 1, 0, [i === 2 ? { name: "Ace", goals: 1, assists: 0, rating: null, passesMade: 5, passAttempts: 6 } : p("Ace", 1, 0, 7 + i / 10)]));
+    const r = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: rows } } }, ME);
+    const rating = recentMatchCharts("Mine", r, true).find((c) => c.key === "recent-ratings")!;
+    expect(rating.series[0].bars.map((b) => b.label)).toEqual(["#1", "#3", "#4"]);
+    expect(rating.series[0].bars.every((b) => b.value > 0)).toBe(true);
+  });
+  it("member charts: goals plus assists per match", () => {
+    const c = recentMatchCharts("Mine", recent, true).find((x) => x.key === "recent-contributions")!;
+    const ace = c.series.find((s) => s.name.en === "Ace")!;
+    expect(ace.bars.map((b) => b.value)).toEqual([1, 0, 3, 1]);
+  });
+  it("several clubs get the goals chart only: no member lines (they would be unreadable side by side)", () => {
+    expect(recentMatchCharts("Mine", recent, false).map((x) => x.key)).toEqual(["recent-goals"]);
+  });
+  it("no matches loaded (null) or none readable gives no charts, never an empty one", () => {
+    expect(recentMatchCharts("Mine", null, true)).toEqual([]);
+  });
+  it("a club whose members never played 3 matches gets the goals chart and no member charts", () => {
+    const few = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: [mk(1, 1, 0, [p("A", 1, 0, 8)]), mk(2, 1, 0, [p("A", 0, 0, 7)])] } } }, ME);
+    expect(recentMatchCharts("Mine", few, true).map((x) => x.key)).toEqual(["recent-goals"]);
+  });
+  it("a member whose goals and assists are all zero gives no contributions chart (an empty chart tells nothing)", () => {
+    const flat = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: [1, 2, 3].map((i) => mk(i, 1, 0, [p("Z", 0, 0, 7)])) } } }, ME);
+    expect(recentMatchCharts("Mine", flat, true).map((x) => x.key)).toEqual(["recent-goals", "recent-ratings"]);
+  });
+  it("chartsFor includes the member match charts for one club and one goals chart PER club for several", () => {
+    const profile = { name: "Mine", label: "x", id: "100:nx", recent, members: [] } as unknown as ClubProfile;
+    const keys = chartsFor({ mode: "single", clubs: [profile], metrics: [] }).map((x) => x.key);
+    expect(keys).toEqual(expect.arrayContaining(["recent-goals", "recent-ratings", "recent-contributions"]));
+    const many = chartsFor({ mode: "compare", clubs: [profile, { ...profile, id: "200:nx", name: "Other" }], metrics: [] }).map((x) => x.key);
+    expect(many.filter((k) => k === "recent-goals")).toHaveLength(2);
+    expect(many).not.toContain("recent-ratings");
+  });
+});
+
+describe("the chart view shows results as words", () => {
+  it("W, D and L become win, draw and loss in the reader's language", () => {
+    expect(CHARTS.W.en).toBe("win");
+    expect(CHARTS.D.zh).toBe("和");
+    expect(CHARTS.L.zh).toBe("負");
+  });
+});
+
+import { buildDigest, buildPrompt } from "@/lib/llm/prompt";
+
+describe("the AI sees the recent matches and the chart titles", () => {
+  const ME = "100";
+  const mk = (i: number, gf: number, ga: number, players: Array<Record<string, unknown>>) => ({
+    matchId: `m${i}`, timestamp: 1_800_000_000 + i * 3600,
+    clubs: { [ME]: { goals: gf, goalsAgainst: ga, name: "Mine" }, "200": { goals: ga, goalsAgainst: gf, name: "Opp" } },
+    players: { [ME]: players, "200": [] },
+  });
+  const p = (name: string, goals: number, assists: number, rating: number) => ({ name, goals, assists, rating, passesMade: 8, passAttempts: 10 });
+  const ms = [1, 2, 3, 4, 5].map((i) => mk(i, i % 2, 0, [p("Ace", i % 2, 0, 7 + i / 10), p("Wing", 0, 1, 6.5)]));
+  const base = club({ ...STRONG(), id: "100:common-gen5", clubId: "100" });
+  const withMatches = () => {
+    const d = JSON.parse(JSON.stringify(base.data));
+    d.parts.leagueMatches = { status: "ok", data: ms };
+    return compareClubs([{ ...base, data: d }]);
+  };
+
+  it("sends each club's recent results oldest first, with the form and per-member match lines", () => {
+    const dg = buildDigest(withMatches()) as any;
+    const r = dg.clubs[0].recentMatches;
+    expect(r.matches).toBe(5);
+    // matches 1..5 score i%2 to 0: odd i wins 1-0, even i is a 0-0 draw
+    expect(r.formOldestFirst).toBe("WDWDW");
+    expect(r.results[0]).toMatch(/^#1 [WDL] \d+-\d+$/);
+    const ace = r.members.find((m: any) => m.name === "Ace");
+    expect(ace.perMatch).toHaveLength(5);
+    expect(ace.perMatch[0]).toMatch(/^#1: \dg \da r7\.\d$/);
+  });
+  it("a member who sat a match out is simply missing from that match line", () => {
+    const rows = [mk(1, 1, 0, [p("Ace", 1, 0, 8), p("Wing", 0, 0, 7)]), mk(2, 1, 0, [p("Ace", 0, 0, 7)]), mk(3, 1, 0, [p("Ace", 0, 0, 7), p("Wing", 0, 0, 7)]), mk(4, 1, 0, [p("Ace", 0, 0, 7), p("Wing", 0, 0, 7)])];
+    const d = JSON.parse(JSON.stringify(base.data)); d.parts.leagueMatches = { status: "ok", data: rows };
+    const dg = buildDigest(compareClubs([{ ...base, data: d }])) as any;
+    const wing = dg.clubs[0].recentMatches.members.find((m: any) => m.name === "Wing");
+    expect(wing.perMatch.map((x: string) => x.split(":")[0])).toEqual(["#1", "#3", "#4"]);
+  });
+  it("the form letters are in the order the label says: oldest first, matching the result lines", () => {
+    // build a club whose first (oldest) match is a LOSS and whose newest is a WIN, so a reversed string cannot pass
+    const rows = [mk(1, 0, 2, [p("Ace", 0, 0, 6)]), mk(2, 1, 1, [p("Ace", 0, 0, 7)]), mk(3, 3, 0, [p("Ace", 2, 0, 9)])];
+    const d = JSON.parse(JSON.stringify(base.data)); d.parts.leagueMatches = { status: "ok", data: rows };
+    const dg = buildDigest(compareClubs([{ ...base, data: d }])) as any;
+    const r = dg.clubs[0].recentMatches;
+    expect(r.formOldestFirst).toBe("LDW");
+    expect(r.results).toEqual(["#1 L 0-2", "#2 D 1-1", "#3 W 3-0"]);
+    expect(r.formOldestFirst.split("")).toEqual(r.results.map((x: string) => x.split(" ")[1]));
+    // and the older recentForm block is the OPPOSITE order, so the two are never confused
+    expect(dg.clubs[0].recentForm.newestFirst).toBe("WDL");
+  });
+  it("a member with fewer than 3 appearances is NOT in the digest's member list (a trend from 1 or 2 games is noise)", () => {
+    const rows = [mk(1, 1, 0, [p("Busy", 1, 0, 8), p("Once", 0, 0, 9)]), mk(2, 1, 0, [p("Busy", 0, 0, 7)]), mk(3, 1, 0, [p("Busy", 0, 1, 8)])];
+    const d = JSON.parse(JSON.stringify(base.data)); d.parts.leagueMatches = { status: "ok", data: rows };
+    const names = ((buildDigest(compareClubs([{ ...base, data: d }])) as any).clubs[0].recentMatches.members as any[]).map((m) => m.name);
+    expect(names).toEqual(["Busy"]);
+  });
+  it("the trimmed digest (used when the full one is too big) keeps the results but drops the per-member lines", () => {
+    const dg = buildDigest(withMatches(), 3, 6) as any;
+    expect(dg.clubs[0].recentMatches.results).toHaveLength(5);
+    expect(dg.clubs[0].recentMatches.members).toBeUndefined();
+  });
+  it("a club with no matches loaded has recentMatches null (the model is not told anything invented)", () => {
+    const dg = buildDigest(compareClubs([club({ ...STRONG(), id: "1:common-gen5" })])) as any;
+    // the stock club carries match SCORES, so build one with the matches part removed
+    const d = JSON.parse(JSON.stringify(club({ ...STRONG(), id: "1:common-gen5" }).data)); delete d.parts.leagueMatches;
+    const none = buildDigest(compareClubs([{ ...club({ ...STRONG(), id: "1:common-gen5" }), data: d }])) as any;
+    expect(none.clubs[0].recentMatches).toBeNull();
+    expect(dg.clubs[0].recentMatches).not.toBeNull();
+  });
+  it("lists the titles of the charts the page draws, the same ones chartsFor returns", () => {
+    const c = withMatches();
+    const dg = buildDigest(c) as any;
+    expect(dg.chartsShown).toEqual(chartsFor(c).map((x) => x.title.en));
+    expect(dg.chartsShown.some((t: string) => /last 5 league matches/.test(t))).toBe(true);
+  });
+  it("the digest stays small: five matches of two busy members add well under 2 KB", () => {
+    const without = JSON.stringify((buildDigest(compareClubs([club({ ...STRONG(), id: "100:common-gen5", clubId: "100" })])) as any).clubs[0].recentMatches);
+    const withM = JSON.stringify((buildDigest(withMatches()) as any).clubs[0].recentMatches);
+    expect(withM.length).toBeLessThan(2000);
+    expect(without).toBeDefined();
+  });
+  it("it all reaches the prompt as numbers only, and the prompt tells the model how to use it", () => {
+    const pr = buildPrompt(buildDigest(withMatches()), "how is the form?", "en");
+    expect(pr.user).toContain("formOldestFirst");
+    expect(pr.user).toContain("chartsShown");
+    expect(pr.system).toMatch(/recentMatches/);
   });
 });
