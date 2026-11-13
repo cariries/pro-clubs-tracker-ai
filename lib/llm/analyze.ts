@@ -6,6 +6,7 @@ import type { TruncationTokens } from "../analysis-ui";
 import { isClubId, isPublicPlatform } from "../public-clubs";
 import { costUsd, estimateTokens } from "./budget";
 import type { LlmConfig } from "./config";
+import { DEFAULT_MAX_TURNS, validateHistory, type HistoryTurn } from "./history";
 import { buildDigest, buildPrompt, QUESTION_MAX_CHARS, type Language } from "./prompt";
 import { LlmError, type LlmProvider } from "./provider";
 import { parseReport, type Report } from "./report";
@@ -24,13 +25,15 @@ export interface AnalysisInput {
   clubs: ClubRef[];
   question: string;
   language: Language;
+  /** Earlier questions and short answer summaries in this conversation, oldest first (kept by the browser). */
+  history: HistoryTurn[];
 }
 
 export type InputValidation = { ok: true; value: AnalysisInput } | { ok: false; error: string };
 
-export function validateAnalysisInput(body: unknown): InputValidation {
+export function validateAnalysisInput(body: unknown, maxTurns: number = DEFAULT_MAX_TURNS): InputValidation {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return { ok: false, error: "body must be a JSON object" };
-  const { clubs, question, language } = body as Record<string, unknown>;
+  const { clubs, question, language, history } = body as Record<string, unknown>;
   if (!Array.isArray(clubs)) return { ok: false, error: "clubs must be a list of 1 to 4 clubs" };
   const seen = new Set<string>();
   const refs: ClubRef[] = [];
@@ -49,7 +52,9 @@ export function validateAnalysisInput(body: unknown): InputValidation {
   const q = question.replace(/\s+/g, " ").trim();
   if (q.length < 1 || q.length > QUESTION_MAX_CHARS) return { ok: false, error: `question must be 1 to ${QUESTION_MAX_CHARS} characters` };
   if (language !== "en" && language !== "zh") return { ok: false, error: 'language must be "en" or "zh"' };
-  return { ok: true, value: { clubs: refs, question: q, language } };
+  const h = validateHistory(history, maxTurns);
+  if (!h.ok) return { ok: false, error: h.error };
+  return { ok: true, value: { clubs: refs, question: q, language, history: h.turns } };
 }
 
 /** Why loading a club's data failed. `refused` = our own limits (try again soon); the others are about EA. */
@@ -111,10 +116,10 @@ export async function analyze(deps: AnalyzeDeps, userId: string, input: Analysis
   const comparison = compareClubs(loaded.clubs);
 
   // Fit the digest to the input budget: full -> trimmed -> refuse. Never silently send a truncated string.
-  let prompt = buildPrompt(buildDigest(comparison), input.question, input.language);
+  let prompt = buildPrompt(buildDigest(comparison), input.question, input.language, input.history);
   let inputEst = estimateTokens(prompt.system) + estimateTokens(prompt.user);
   if (inputEst > config.maxInputTokens) {
-    prompt = buildPrompt(buildDigest(comparison, 3, 6), input.question, input.language);
+    prompt = buildPrompt(buildDigest(comparison, 3, 6), input.question, input.language, input.history);
     inputEst = estimateTokens(prompt.system) + estimateTokens(prompt.user);
   }
   if (inputEst > config.maxInputTokens) return fail("too_large", "These clubs hold too much data to analyse at once. Try fewer clubs.", 413);

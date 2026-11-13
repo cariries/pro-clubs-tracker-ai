@@ -18,6 +18,8 @@ export interface LlmConfig {
   /** Global spend cap per UTC day, in USD (CHAT_DAILY_CAP_USD). */
   dailyCapUsd: number;
   userDailyLimit: number;
+  /** Questions allowed in one conversation (LLM_MAX_TURNS). */
+  maxTurns: number;
   maxOutputTokens: number;
   maxInputTokens: number;
   /** Total time allowed for one analysis call INCLUDING retries and waits between them (LLM_TIMEOUT_MS). */
@@ -60,6 +62,7 @@ export function readLlmConfig(env: Env): LlmConfigResult {
   const maxOutputTokens = bounded(env.LLM_MAX_OUTPUT_TOKENS, 2000, 100, 8000, "LLM_MAX_OUTPUT_TOKENS", problems);
   const maxInputTokens = bounded(env.LLM_MAX_INPUT_TOKENS, 30000, 1000, 200000, "LLM_MAX_INPUT_TOKENS", problems);
   const userDailyLimit = bounded(env.LLM_USER_DAILY_LIMIT, 5, 1, 1000, "LLM_USER_DAILY_LIMIT", problems);
+  const maxTurns = bounded(env.LLM_MAX_TURNS, 8, 1, 30, "LLM_MAX_TURNS", problems);
   const timeoutMs = bounded(env.LLM_TIMEOUT_MS, 45000, 1000, 55000, "LLM_TIMEOUT_MS", problems);
   const maxRetries = bounded(env.LLM_MAX_RETRIES, 1, 0, 3, "LLM_MAX_RETRIES", problems);
 
@@ -79,7 +82,7 @@ export function readLlmConfig(env: Env): LlmConfigResult {
         provider: "fake", baseUrl: "", apiKey: "", model: "demo",
         inPriceUsdPerMTok: 0, outPriceUsdPerMTok: 0,
         dailyCapUsd: num(env.CHAT_DAILY_CAP_USD) ?? 1,
-        userDailyLimit, maxOutputTokens, maxInputTokens, timeoutMs, maxRetries: 0, reasoningEffort: null, jsonMode: false,
+        userDailyLimit, maxTurns, maxOutputTokens, maxInputTokens, timeoutMs, maxRetries: 0, reasoningEffort: null, jsonMode: false,
       },
     };
   }
@@ -127,7 +130,7 @@ export function readLlmConfig(env: Env): LlmConfigResult {
     config: {
       provider: "openai-compatible", baseUrl, apiKey, model,
       inPriceUsdPerMTok: inPrice, outPriceUsdPerMTok: outPrice, dailyCapUsd: cap,
-      userDailyLimit, maxOutputTokens, maxInputTokens, timeoutMs, maxRetries, reasoningEffort,
+      userDailyLimit, maxTurns, maxOutputTokens, maxInputTokens, timeoutMs, maxRetries, reasoningEffort,
       jsonMode: (env.LLM_JSON_MODE ?? "").trim() === "1",
     },
   };

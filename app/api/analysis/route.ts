@@ -5,6 +5,7 @@ import { describeUnexpected } from "@/lib/errors";
 import { fetchEa } from "@/lib/ea-fetch";
 import { getLlm } from "@/lib/llm";
 import { analyze, validateAnalysisInput } from "@/lib/llm/analyze";
+import { summariseAnswer } from "@/lib/llm/history";
 import { finalizeUsage, reserveBudget } from "@/lib/llm/usage";
 import { loadClubsForAnalysis, type ClubCacheDeps } from "@/lib/club-cache";
 import { readClubCache, writeClubCache } from "@/lib/club-cache-db";
@@ -45,14 +46,18 @@ async function handle(req: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "bad_request", message: "body must be JSON" }, { status: 400 });
   }
-  const input = validateAnalysisInput(body);
-  if (!input.ok) return Response.json({ error: "bad_request", message: input.error }, { status: 400 });
-
+  // The turn limit comes from the LLM settings, so read them first.
   const llm = getLlm(process.env);
   if (!llm.configured) {
     // Which variables are missing goes to the server log, not to the browser.
     console.error("[analysis] LLM not configured. missing:", llm.missing.join(","), "problems:", llm.problems.join("; "));
     return Response.json({ error: "llm_not_configured" }, { status: 503 });
+  }
+  const input = validateAnalysisInput(body, llm.config.maxTurns);
+  if (!input.ok) {
+    // Too many earlier turns is the user's conversation being full, not a malformed request.
+    if (input.error === "turn_limit") return Response.json({ error: "turn_limit", maxTurns: llm.config.maxTurns }, { status: 400 });
+    return Response.json({ error: "bad_request", message: input.error }, { status: 400 });
   }
 
   // Live EA fetches use the SAME gate as the public pages, keyed by the signed-in user (not the shared IP), so one
@@ -92,6 +97,9 @@ async function handle(req: Request): Promise<Response> {
   const c = result.comparison;
   return Response.json({
     report: result.report,
+    // A short plain-text summary the page keeps and sends back as history for follow-up questions.
+    answerSummary: summariseAnswer(result.report),
+    maxTurns: llm.config.maxTurns,
     // The numbers behind the report, computed by our code, so the page can show them next to the AI text.
     comparison: { mode: c.mode, clubs: c.clubs, metrics: c.metrics, playerBoards: c.playerBoards, samePlatform: c.samePlatform, usableClubs: c.usableClubs, warnings: c.warnings },
     fetchedFromEa: result.fetchedFromEa,

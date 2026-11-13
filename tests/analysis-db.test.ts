@@ -32,7 +32,7 @@ const fakeCfg = () => {
   return r.config;
 };
 const REFS = [{ clubId: "914493", platform: "common-gen5" }, { clubId: "914493", platform: "nx" }];
-const input = { clubs: REFS, question: "Which club defends best?", language: "zh" as const };
+const input = { clubs: REFS, question: "Which club defends best?", language: "zh" as const, history: [] as Array<{ question: string; answer: string }> };
 
 const state = { eaCalls: 0, now: T0, blocked: false };
 beforeEach(() => { state.eaCalls = 0; state.now = T0; state.blocked = false; });

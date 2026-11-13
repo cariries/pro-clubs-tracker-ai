@@ -6,11 +6,12 @@ import { BOARD_LABEL, METRIC_LABEL, describeWarning, type ClubComparison, type C
 import { askPath, removeAskClub, type AskClub } from "@/lib/ask-clubs";
 import { PUBLIC_PLATFORMS } from "@/lib/public-clubs";
 import { fill, pick, type Bi, type Lang } from "@/lib/i18n";
-import { ASK, MEMBER_COLS } from "@/lib/ui-text";
+import { ASK, MEMBER_COLS, THREAD } from "@/lib/ui-text";
+import { historyOf, parseStoredThread, serializeThread, threadFull, threadKey, turnsLeft, type ThreadTurn } from "@/lib/ask-thread";
 
 export type ClubNames = Record<string, string>;
 
-type Provider = { configured: false; missing: string[]; problems: string[] } | { configured: true; host: string; model: string; demo: boolean; userDailyLimit: number };
+type Provider = { configured: false; missing: string[]; problems: string[] } | { configured: true; host: string; model: string; demo: boolean; userDailyLimit: number; maxTurns: number };
 
 // Mirrors lib/llm/report.ts. Every string is rendered as React text (escaped); never as HTML.
 interface Report {
@@ -23,12 +24,22 @@ interface Report {
 }
 interface Result {
   report: Report;
+  answerSummary: string;
+  maxTurns: number;
   comparison: Pick<ClubComparison, "mode" | "clubs" | "metrics" | "playerBoards" | "samePlatform" | "usableClubs"> & { warnings: ComparisonWarning[] };
   fetchedFromEa: number;
   usage: { inputTokens: number; outputTokens: number; costUsd: number; estimated: boolean };
 }
 
+/** One turn on screen: the question, and the full report if it was answered on this page (not after a reload). */
+interface Shown {
+  question: string;
+  summary: string;
+  result: Result | null;
+}
+
 const ERRORS: Record<string, Bi> = {
+  turn_limit: THREAD.turnLimitError,
   unauthorized: { en: "Please sign in first.", zh: "請先登入。" },
   llm_not_configured: { en: "The AI service is not set up yet.", zh: "AI 服務尚未設定。" },
   club_not_found: { en: "EA has no club with that ID on that platform.", zh: "EA 喺呢個平台冇呢個編號嘅球會。" },
@@ -51,8 +62,40 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
-  const [result, setResult] = useState<Result | null>(null);
+  const [shown, setShown] = useState<Shown[]>([]);
+  const maxTurns = provider.configured ? provider.maxTurns : 8;
   const [platform, setPlatform] = useState<(typeof PUBLIC_PLATFORMS)[number]>(clubs[0]?.platform === "nx" ? "nx" : "common-gen5");
+
+  // The conversation lives in this tab only (sessionStorage): nothing is stored on the server. It is keyed by the chosen
+  // clubs, so changing the clubs starts a new conversation. Storage can be unavailable or hold junk; start fresh then.
+  const clubsKey = clubs.map((c) => `${c.clubId}.${c.platform}`).join(",");
+  useEffect(() => {
+    if (clubsKey === "") return;
+    try {
+      const t = parseStoredThread(window.sessionStorage.getItem(threadKey(clubsKey)), maxTurns);
+      if (t && t.turns.length > 0) {
+        setShown(t.turns.map((x) => ({ question: x.question, summary: x.summary, result: null })));
+        setLanguage(t.language);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [clubsKey, maxTurns]);
+  function saveThread(next: Shown[], lang2: "en" | "zh") {
+    try {
+      const turns: ThreadTurn[] = next.map((x) => ({ question: x.question, summary: x.summary }));
+      if (turns.length === 0) window.sessionStorage.removeItem(threadKey(clubsKey));
+      else window.sessionStorage.setItem(threadKey(clubsKey), serializeThread(lang2, turns));
+    } catch {
+      /* ignore */
+    }
+  }
+  function newConversation() {
+    if (shown.length > 0 && !window.confirm(pick(THREAD.newChatConfirm, lang))) return;
+    setShown([]);
+    setError(null);
+    saveThread([], language);
+  }
 
   // Remember the privacy acknowledgement per provider+model. Storage can be unavailable; never rely on it.
   const ackKey = provider.configured ? `ai-notice:${provider.host}:${provider.model}` : "";
@@ -73,11 +116,12 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
     }
   }
 
+  const full = threadFull(shown.length, maxTurns);
   const gate = {
     configured: provider.configured,
     demo: provider.configured && provider.demo,
     agreed,
-    busy,
+    busy: busy || full,
     clubs: clubs.length,
     minClubs: 1,
     maxClubs: max,
@@ -90,15 +134,15 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
-    if (!canRun) return;
+    if (!canRun || full) return;
+    const asked = question.trim();
     setBusy(true);
     setError(null);
-    setResult(null);
     try {
       const res = await fetch("/api/analysis", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clubs, question: question.trim(), language }),
+        body: JSON.stringify({ clubs, question: asked, language, history: historyOf(shown) }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -108,9 +152,16 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
         // Only a cut-off answer carries token counts. They are shown so the user can see how close the answer came.
         const tokens = code === "llm_truncated" ? readTruncationTokens(body) : null;
         setError({ text: base + refTxt, detail: tokens ? pick(describeTruncation(tokens), lang) : undefined });
-        return;
+        return; // a failed question is not added to the conversation, so it does not use up a turn on screen
       }
-      setResult(body as Result);
+      const r = body as Result;
+      const summary = typeof r.answerSummary === "string" ? r.answerSummary : "";
+      // Earlier turns keep whatever result they had; the newest carries its full result. appendTurn enforces the limit.
+      const kept = shown.length >= maxTurns ? shown.slice(shown.length - maxTurns + 1) : shown;
+      const next: Shown[] = [...kept, { question: asked, summary, result: r }];
+      setShown(next);
+      setQuestion("");
+      saveThread(next, language);
     } catch {
       setError({ text: pick(ASK.networkError, lang) });
     } finally {
@@ -185,19 +236,56 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
         <small>{pick(scope, lang)}</small>
       </p>
 
+      {shown.length > 0 && (
+        <section className="thread" aria-label={pick(THREAD.youAsked, lang)}>
+          {shown.map((t, i) => (
+            <div key={i} className="turn">
+              <p className="you">
+                <strong>{pick(THREAD.youAsked, lang)}:</strong> {t.question}
+              </p>
+              {t.result ? (
+                <ReportView r={t.result} lang={lang} />
+              ) : (
+                <div className="panel">
+                  <small className="muted">{pick(THREAD.summaryLabel, lang)}</small>
+                  <p>{t.summary || "–"}</p>
+                </div>
+              )}
+            </div>
+          ))}
+          {shown.some((t) => t.result === null) && (
+            <p className="muted">
+              <small>{pick(THREAD.restored, lang)}</small>
+            </p>
+          )}
+          <p className="muted">
+            <small>{threadFull(shown.length, maxTurns) ? fill(pick(THREAD.full, lang), { max: maxTurns }) : turnsLeft(shown.length, maxTurns) === 1 ? pick(THREAD.leftOne, lang) : fill(pick(THREAD.left, lang), { n: turnsLeft(shown.length, maxTurns) })}</small>
+          </p>
+          <button type="button" className="secondary" onClick={newConversation}>
+            {pick(THREAD.newChat, lang)}
+          </button>
+        </section>
+      )}
+
       <form onSubmit={run}>
         <h2>{pick(ASK.step2, lang)}</h2>
+        {shown.length > 0 && <p className="muted"><small>{pick(THREAD.sameData, lang)}</small></p>}
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={500}
           rows={3}
           required
-          placeholder={pick(ASK.questionPlaceholder, lang)}
+          placeholder={pick(shown.length > 0 ? THREAD.followUp : ASK.questionPlaceholder, lang)}
         />
+        {shown.length > 0 && (
+          <p className="muted">
+            <small>{pick(THREAD.langFixed, lang)}</small>
+          </p>
+        )}
         <p>
           {pick(ASK.reportLang, lang)}:{" "}
-          <select value={language} onChange={(e) => setLanguage(e.target.value as "zh" | "en")}>
+          <select value={language} disabled={shown.length > 0} onChange={(e) => setLanguage(e.target.value as "zh" | "en")}>
             <option value="zh">{pick(ASK.langZh, lang)}</option>
             <option value="en">{pick(ASK.langEn, lang)}</option>
           </select>
@@ -230,7 +318,6 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
           )}
         </div>
       )}
-      {result && <ReportView r={result} lang={lang} />}
     </main>
   );
 }

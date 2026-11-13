@@ -158,3 +158,19 @@ export const MEMBER_COLS = {
   careerGp: { en: "Career GP", zh: "生涯場" },
   careerG: { en: "Career G", zh: "生涯入球" },
 } satisfies Record<string, Bi>;
+
+export const THREAD = {
+  youAsked: { en: "You asked", zh: "你問" },
+  newChat: { en: "New conversation", zh: "開新對話" },
+  newChatConfirm: { en: "Start a new conversation? The questions above will be cleared from this page.", zh: "開新對話?上面嘅問題會從呢頁清除。" },
+  used: { en: "Question {n} of {max}", zh: "第 {n} 條問題(上限 {max} 條)" },
+  left: { en: "{n} questions left in this conversation.", zh: "呢個對話仲可以問 {n} 條。" },
+  leftOne: { en: "1 question left in this conversation.", zh: "呢個對話仲可以問 1 條。" },
+  full: { en: "This conversation has reached its limit of {max} questions. Start a new conversation to keep asking.", zh: "呢個對話已達 {max} 條問題上限。請開新對話繼續問。" },
+  langFixed: { en: "The report language is fixed for this conversation. Start a new conversation to change it.", zh: "呢個對話嘅報告語言已固定。請開新對話先可以更改。" },
+  followUp: { en: "Ask a follow-up, e.g. \"and who defends best?\"", zh: "追問,例如「咁邊個防守最好?」" },
+  restored: { en: "Earlier answers are shown as short summaries. The full tables appear for new answers.", zh: "較早嘅回答只顯示簡短摘要,新嘅回答先會顯示完整表格。" },
+  sameData: { en: "Follow-ups use the same club data for about 15 minutes. After that it is fetched again and numbers can change.", zh: "追問會用同一份球會資料約 15 分鐘,之後會重新擷取,數字可能有變。" },
+  turnLimitError: { en: "This conversation is full. Start a new conversation.", zh: "呢個對話已滿,請開新對話。" },
+  summaryLabel: { en: "Summary of the answer", zh: "回答摘要" },
+} satisfies Record<string, Bi>;

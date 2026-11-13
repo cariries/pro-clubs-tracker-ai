@@ -123,6 +123,14 @@ tbody tr:hover { background: var(--accent-soft); }
 .bars .bar { display: inline-block; height: 12px; border-radius: 6px; background: var(--bar); min-width: 2px; }
 .bars .bar.neg { background: var(--bar-neg); }
 
+/* Ask AI conversation */
+.thread { margin: 16px 0; }
+.thread .turn { margin: 18px 0; }
+.thread .you { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; overflow-wrap: anywhere; }
+button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+button.secondary:hover { background: var(--accent-soft); color: var(--text); }
+select:disabled { opacity: .6; cursor: not-allowed; }
+
 /* Ask AI page */
 .wide { max-width: 900px; }
 .panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 12px 0; background: var(--card); }

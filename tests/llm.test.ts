@@ -119,7 +119,7 @@ describe("describeProvider (what the /analysis page is allowed to see)", () => {
 
   it("when configured shows only host, model and limits, never the key or full URL", () => {
     const r = describeProvider(FULL_ENV);
-    expect(r).toEqual({ configured: true, host: "api.example.com", model: "m", demo: false, userDailyLimit: 5 });
+    expect(r).toEqual({ configured: true, host: "api.example.com", model: "m", demo: false, userDailyLimit: 5, maxTurns: 8 });
     expect(JSON.stringify(r)).not.toContain("test-key");
   });
 
@@ -501,7 +501,7 @@ describe("analyze (whole pipeline, fake provider, in-memory ledger)", () => {
     { clubId: "100", platform: "common-gen5" },
     { clubId: "200", platform: "nx" },
   ];
-  const input = { clubs: REFS, question: "Which club defends best?", language: "zh" as const };
+  const input = { clubs: REFS, question: "Which club defends best?", language: "zh" as const, history: [] as Array<{ question: string; answer: string }> };
 
   const clubsFor = () => [club({ ...STRONG(), id: "914493:common-gen5" }), club({ ...MIDDLE(), id: "100:common-gen5" }), club({ ...WEAK(), id: "200:nx" })];
 
@@ -734,13 +734,13 @@ describe("analyze (whole pipeline, fake provider, in-memory ledger)", () => {
 describe("validateAnalysisInput", () => {
   const ok = { clubs: [{ clubId: "914493", platform: "common-gen5" }], question: "  q  ", language: "en" };
   it("accepts 1 to 4 clubs, trims the question, and collapses a club listed twice", () => {
-    expect(validateAnalysisInput(ok)).toEqual({ ok: true, value: { clubs: [{ clubId: "914493", platform: "common-gen5" }], question: "q", language: "en" } });
+    expect(validateAnalysisInput(ok)).toEqual({ ok: true, value: { clubs: [{ clubId: "914493", platform: "common-gen5" }], question: "q", language: "en", history: [] } });
     const dup = validateAnalysisInput({ ...ok, clubs: [ok.clubs[0], ok.clubs[0], { clubId: "914493", platform: "nx" }] });
     expect(dup).toMatchObject({ ok: true, value: { clubs: [{ clubId: "914493", platform: "common-gen5" }, { clubId: "914493", platform: "nx" }] } }); // same id on another platform is another club
   });
   it("ignores unknown extra fields instead of passing them on", () => {
     const r = validateAnalysisInput({ ...ok, clubs: [{ ...ok.clubs[0], evil: "x" }], savedIds: ["a"], refresh: true });
-    expect(r).toEqual({ ok: true, value: { clubs: [ok.clubs[0]], question: "q", language: "en" } });
+    expect(r).toEqual({ ok: true, value: { clubs: [ok.clubs[0]], question: "q", language: "en", history: [] } });
   });
   const c = (i: number) => ({ clubId: String(100 + i), platform: "nx" });
   it.each([

@@ -23,9 +23,9 @@ export function getLlm(env: Record<string, string | undefined> = process.env, op
  * lists the NAMES of missing variables and the validation messages (which name a variable and a range, never a
  * value), so the owner can see what to fix. Variable names are public anyway (.env.example).
  */
-export function describeProvider(env: Record<string, string | undefined> = process.env): { configured: false; missing: string[]; problems: string[] } | { configured: true; host: string; model: string; demo: boolean; userDailyLimit: number } {
+export function describeProvider(env: Record<string, string | undefined> = process.env): { configured: false; missing: string[]; problems: string[] } | { configured: true; host: string; model: string; demo: boolean; userDailyLimit: number; maxTurns: number } {
   const r = readLlmConfig(env);
   if (!r.configured) return { configured: false, missing: r.missing, problems: r.problems };
   const c = r.config;
-  return { configured: true, host: c.provider === "fake" ? "" : new URL(c.baseUrl).host, model: c.model, demo: c.provider === "fake", userDailyLimit: c.userDailyLimit };
+  return { configured: true, host: c.provider === "fake" ? "" : new URL(c.baseUrl).host, model: c.model, demo: c.provider === "fake", userDailyLimit: c.userDailyLimit, maxTurns: c.maxTurns };
 }
