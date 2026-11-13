@@ -132,3 +132,64 @@ export function markerPoints(shape: MarkerShape, cx: number, cy: number, r: numb
     }
   }
 }
+
+// ------------------------------------------------------------------------------------------------ radar chart
+
+export interface RadarBox {
+  /** Side of the square drawing area. */
+  size: number;
+  /** Space kept around the circle for the axis names. */
+  margin: number;
+}
+export const DEFAULT_RADAR: RadarBox = { size: 360, margin: 64 };
+
+export const radarCentre = (box: RadarBox = DEFAULT_RADAR): number => box.size / 2;
+export const radarRadius = (box: RadarBox = DEFAULT_RADAR): number => box.size / 2 - box.margin;
+
+/** Angle of axis i of n, in radians, with axis 0 pointing straight UP and the rest going clockwise. */
+export const axisAngle = (i: number, n: number): number => (n <= 0 ? 0 : (i * 2 * Math.PI) / n - Math.PI / 2);
+
+/** The point on axis i at `fraction` (0 = centre, 1 = the rim) of the radius. A fraction outside 0..1 is held to the ends. */
+export function radarPoint(i: number, n: number, fraction: number, box: RadarBox = DEFAULT_RADAR): { x: number; y: number } {
+  const f = Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : 0;
+  const a = axisAngle(i, n);
+  const c = radarCentre(box);
+  const r = radarRadius(box) * f;
+  return { x: r2(c + r * Math.cos(a)), y: r2(c + r * Math.sin(a)) };
+}
+
+/** The rings drawn behind the data, as fractions of the radius (a quarter, half, three quarters and the rim). */
+export const RADAR_RINGS = [0.25, 0.5, 0.75, 1] as const;
+
+/** Polygon for a ring: every axis at the same fraction. */
+export function ringPoints(n: number, fraction: number, box: RadarBox = DEFAULT_RADAR): string {
+  return Array.from({ length: n }, (_, i) => radarPoint(i, n, fraction, box)).map((p) => `${p.x},${p.y}`).join(" ");
+}
+
+export interface RadarPolygon {
+  /** The corners, one per axis, in axis order. */
+  points: Array<{ x: number; y: number; axis: number; value: number }>;
+  /** The SVG `points` text, or "" with fewer than 3 corners (not a shape). */
+  polygon: string;
+}
+
+/**
+ * @param values one value per axis, already scaled to 0..100 (the page and tests agree on that scale)
+ * A radar needs at least 3 axes to be a shape; with fewer there is nothing to draw.
+ */
+export function radarPolygon(values: readonly number[], box: RadarBox = DEFAULT_RADAR): RadarPolygon {
+  const n = values.length;
+  const points = values.map((v, axis) => ({ ...radarPoint(axis, n, v / 100, box), axis, value: v }));
+  return { points, polygon: n >= 3 ? points.map((p) => `${p.x},${p.y}`).join(" ") : "" };
+}
+
+/** Where an axis name sits (just outside the rim) and how to anchor it, so names on the left do not run over the chart. */
+export function radarLabel(i: number, n: number, box: RadarBox = DEFAULT_RADAR): { x: number; y: number; anchor: "start" | "middle" | "end" } {
+  const a = axisAngle(i, n);
+  const c = radarCentre(box);
+  const r = radarRadius(box) + 16;
+  const x = r2(c + r * Math.cos(a));
+  const y = r2(c + r * Math.sin(a) + 4);
+  const cos = Math.cos(a);
+  return { x, y, anchor: Math.abs(cos) < 0.2 ? "middle" : cos > 0 ? "start" : "end" };
+}

@@ -195,7 +195,7 @@ describe("chartsFor picks the right set for the mode", () => {
   it("one club gets member charts, several get club charts", () => {
     // the stock invented clubs carry league match SCORES but no per-member match lines, so the recent-goals chart
     // appears and the per-member match charts do not
-    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-per-game", "members-rating", "members-rates", "recent-goals"]);
+    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-per-game", "members-rating", "members-rates", "members-radar", "recent-goals"]);
     expect(chartsFor(three()).map((x) => x.key)).toEqual(["clubs-win-rate", "clubs-goals", "recent-goals", "recent-goals", "recent-goals"]);
   });
   it("does not mutate the comparison it reads", () => {
@@ -422,6 +422,20 @@ describe("the page draws what the code says (read from source)", () => {
   it("column charts scroll sideways on a phone instead of squashing every member into the width", () => {
     expect(read("app/globals.css")).toMatch(/\.cols \{[^}]*overflow-x: auto/);
     expect(read("app/globals.css")).toMatch(/\.lines-wrap \{ overflow-x: auto/);
+  });
+});
+
+describe("the AI is told about the radar too", () => {
+  it("the radar's title is in chartsShown for one club, the same list the page draws", async () => {
+    const { buildDigest } = await import("@/lib/llm/prompt");
+    const squad = [
+      { name: "Ace", games: 20, goals: 30, assists: 5, rating: 8.5, passPct: 84, shotPct: 55, tacklePct: 40 },
+      { name: "Wing", games: 18, goals: 9, assists: 12, rating: 7.8, passPct: 79, shotPct: 33, tacklePct: 61 },
+    ];
+    const c = compareClubs([club({ ...STRONG(), id: "1:common-gen5", players: squad })]);
+    const dg = buildDigest(c) as { chartsShown: string[] };
+    expect(dg.chartsShown).toEqual(chartsFor(c).map((x) => x.title.en));
+    expect(dg.chartsShown).toContain("Member profile radar (season)");
   });
 });
 

@@ -2,6 +2,7 @@ import { barWidthPct, type ChartSpec } from "@/lib/charts";
 import { fill, pick, type Lang } from "@/lib/i18n";
 import { CHARTS } from "@/lib/ui-text";
 import LineChart from "./LineChart";
+import RadarChart from "./RadarChart";
 
 // Draws chart specs from lib/charts.ts: vertical columns (one group per member or club) or lines across matches. Plain
 // HTML, CSS and SVG built by OUR code (never markup from a model). Colours are theme tokens, so light and dark both
@@ -63,6 +64,8 @@ export default function ChartView({ charts, lang }: { charts: ChartSpec[]; lang:
             <figcaption>{pick(c.title, lang)}</figcaption>
             {c.kind === "lines" ? (
               <LineChart spec={c} lang={lang} />
+            ) : c.kind === "radar" ? (
+              <RadarChart spec={c} lang={lang} />
             ) : (
               <>
                 {multi && (

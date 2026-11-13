@@ -43,3 +43,66 @@ export function addAskClub(clubs: readonly AskClub[], add: AskClub): { clubs: As
 }
 
 export const removeAskClub = (clubs: readonly AskClub[], drop: AskClub): AskClub[] => clubs.filter((c) => key(c) !== key(drop));
+
+// ------------------------------------------------------------------------------------------------ data age
+
+/** What the page shows about a chosen club's data: its name and how long ago EA was last asked (null = never cached). */
+export interface ClubInfo {
+  name: string | null;
+  /** ISO time the data was fetched from EA, or null if it is not cached yet. */
+  fetchedAt: string | null;
+}
+
+/** "3 min ago" in words, from a number of whole seconds. Returns the unit and amount so each language words it. */
+export function ageParts(seconds: number): { unit: "now" | "min" | "hour" | "day"; n: number } {
+  const s = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  if (s < 60) return { unit: "now", n: 0 };
+  if (s < 3600) return { unit: "min", n: Math.floor(s / 60) };
+  if (s < 86_400) return { unit: "hour", n: Math.floor(s / 3600) };
+  return { unit: "day", n: Math.floor(s / 86_400) };
+}
+
+/** Whole seconds between a stored ISO time and now; null when there is no usable time. A future time counts as 0. */
+export function ageSeconds(fetchedAt: string | null | undefined, nowMs: number): number | null {
+  if (!fetchedAt) return null;
+  const t = Date.parse(fetchedAt);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((nowMs - t) / 1000));
+}
+
+// ------------------------------------------------------------------------------------------------ refresh wording
+
+export interface RefreshOutcomeView {
+  clubId: string;
+  platform: string;
+  result: string;
+  clubName?: string | null;
+  fetchedAt?: string | null;
+  retryAfterSec?: number;
+}
+
+/** Reads the refresh route's answer without trusting it. Anything unexpected is dropped, never shown. */
+export function readRefreshResponse(body: unknown): { results: RefreshOutcomeView[]; limitPerHour: number | null } | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { results, limitPerHour } = body as Record<string, unknown>;
+  if (!Array.isArray(results)) return null;
+  const out: RefreshOutcomeView[] = [];
+  for (const r of results) {
+    if (typeof r !== "object" || r === null) continue;
+    const o = r as Record<string, unknown>;
+    if (typeof o.clubId !== "string" || typeof o.platform !== "string" || typeof o.result !== "string") continue;
+    out.push({
+      clubId: o.clubId,
+      platform: o.platform,
+      result: o.result,
+      clubName: typeof o.clubName === "string" ? o.clubName : null,
+      fetchedAt: typeof o.fetchedAt === "string" ? o.fetchedAt : null,
+      retryAfterSec: typeof o.retryAfterSec === "number" && Number.isFinite(o.retryAfterSec) && o.retryAfterSec >= 0 ? Math.min(o.retryAfterSec, 86_400) : undefined,
+    });
+  }
+  return { results: out, limitPerHour: typeof limitPerHour === "number" && Number.isFinite(limitPerHour) && limitPerHour > 0 ? limitPerHour : null };
+}
+
+/** The result codes the refresh route can return (and the page knows how to word). */
+export const REFRESH_RESULTS = ["refreshed", "too_recent", "limit", "busy", "kept_old", "blocked", "ea_error", "not_found", "too_large", "skipped"] as const;
+export const isRefreshResult = (v: string): boolean => (REFRESH_RESULTS as readonly string[]).includes(v);

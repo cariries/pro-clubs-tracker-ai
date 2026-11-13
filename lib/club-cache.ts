@@ -95,3 +95,85 @@ export async function loadClubsForAnalysis(
   }
   return { ok: true, clubs, fetchedFromEa };
 }
+
+// ------------------------------------------------------------------------------------------------ refresh now
+
+/** A club fetched less than this many seconds ago is not fetched again, so refreshing cannot be used to hammer EA. */
+export const REFRESH_MIN_AGE_SEC = 60;
+/** Club refreshes one signed-in user may trigger per hour (each one is five EA calls). Not refunded when EA fails. */
+export const REFRESH_PER_HOUR = 20;
+
+export type RefreshResult =
+  /** Fetched from EA and stored for everyone. */
+  | { result: "refreshed"; fetchedAt: Date; clubName: string | null }
+  /** The cached copy is younger than REFRESH_MIN_AGE_SEC, so nothing was fetched. */
+  | { result: "too_recent"; fetchedAt: Date; clubName: string | null; retryAfterSec: number }
+  /** Our own limits (this user's hourly refreshes, or the shared EA ceiling). Nothing was fetched. */
+  | { result: "limit" | "busy"; fetchedAt: Date | null; clubName: string | null; retryAfterSec: number }
+  /** EA answered but an answer with a failed part is never stored, so the older copy (if any) is kept. */
+  | { result: "kept_old"; fetchedAt: Date | null; clubName: string | null }
+  | { result: "blocked" | "ea_error" | "not_found" | "too_large"; fetchedAt: Date | null; clubName: string | null }
+  /** Not attempted because an earlier club in the same request was blocked or refused. */
+  | { result: "skipped"; fetchedAt: Date | null; clubName: string | null };
+
+export interface RefreshDeps extends ClubCacheDeps {
+  /** Counts one refresh against this user's hourly allowance. */
+  consumeRefresh(): Promise<{ ok: boolean; retryAfterSec: number }>;
+}
+
+const nameOf = (hit: CacheRow | null): string | null => hit?.capture.summary.clubName ?? null;
+
+/**
+ * Forces a live fetch of one club, bypassing the 15-minute window, and stores it for everybody. It is a refresh, not a
+ * replacement: an answer with a failed part is never stored, so a good cached copy is never swapped for a worse one.
+ * Order matters, cheapest check first: too recent (free) -> this user's hourly allowance -> the shared EA gate -> EA.
+ */
+export async function refreshClubData(deps: RefreshDeps, clubId: string, platform: string): Promise<RefreshResult> {
+  const hit = await deps.read(clubId, platform);
+  if (hit) {
+    const age = (deps.now().getTime() - hit.fetchedAt.getTime()) / 1000;
+    // age under the minimum, including a negative age from clock skew, counts as too recent
+    if (age < REFRESH_MIN_AGE_SEC) return { result: "too_recent", fetchedAt: hit.fetchedAt, clubName: nameOf(hit), retryAfterSec: Math.min(REFRESH_MIN_AGE_SEC, Math.ceil(REFRESH_MIN_AGE_SEC - age)) };
+  }
+  const base = { fetchedAt: hit?.fetchedAt ?? null, clubName: nameOf(hit) };
+
+  const mine = await deps.consumeRefresh();
+  if (!mine.ok) return { result: "limit", ...base, retryAfterSec: mine.retryAfterSec };
+  const gate = await deps.admit(PROFILE_PARTS.length);
+  if (!gate.ok) return { result: "busy", ...base, retryAfterSec: gate.retryAfterSec };
+
+  const cap = await deps.capture(clubId, platform);
+  if (cap.blocked) {
+    await deps.openBreaker();
+    return { result: "blocked", ...base };
+  }
+  const st = cap.summary.statuses;
+  const failed = PROFILE_PARTS.filter((k) => st[k] === "failed").length;
+  // same rules as a normal load: nothing usable and nothing failed = no such club; anything failed = EA trouble
+  if (cap.okCount === 0 || (st.clubInfo !== "ok" && st.overallStats !== "ok")) return { result: failed > 0 ? "ea_error" : "not_found", ...base };
+  if (cap.summary.bytes > MAX_CACHED_BYTES) return { result: "too_large", ...base };
+  if (failed > 0) return { result: "kept_old", ...base };
+
+  const fetchedAt = deps.now();
+  await deps.write(clubId, platform, cap, fetchedAt);
+  return { result: "refreshed", fetchedAt, clubName: cap.summary.clubName };
+}
+
+/**
+ * Refreshes 1 to 4 clubs ONE AT A TIME. A block, this user's limit or the shared ceiling stops everything at once: the
+ * clubs after it are reported as skipped and EA is not asked again (a block is never retried or worked around).
+ */
+export async function refreshClubs(deps: RefreshDeps, refs: ReadonlyArray<{ clubId: string; platform: string }>): Promise<Array<RefreshResult & { clubId: string; platform: string }>> {
+  const out: Array<RefreshResult & { clubId: string; platform: string }> = [];
+  let stop = false;
+  for (const ref of refs) {
+    if (stop) {
+      out.push({ result: "skipped", fetchedAt: null, clubName: null, ...ref });
+      continue;
+    }
+    const r = await refreshClubData(deps, ref.clubId, ref.platform);
+    out.push({ ...r, ...ref });
+    if (r.result === "blocked" || r.result === "limit" || r.result === "busy") stop = true;
+  }
+  return out;
+}

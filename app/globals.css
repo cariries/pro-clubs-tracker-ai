@@ -175,6 +175,21 @@ tbody tr:hover { background: var(--accent-soft); }
 .lx-table { margin-top: 10px; }
 .lx-table summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
 
+/* refresh now */
+.refresh { margin: 8px 0 14px; }
+.refresh p { margin: 6px 0; }
+.refresh-msgs { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; }
+
+/* radar chart (SVG) */
+.radar { display: block; width: 100%; max-width: 440px; margin: 0 auto; height: auto; }
+.radar .ring { fill: none; stroke: var(--grid); stroke-width: 1; }
+.radar .spoke { stroke: var(--grid); stroke-width: 1; }
+.radar text { fill: var(--muted); font-size: 11px; }
+.radar .rshape { fill-opacity: .16; stroke-width: 2.2; stroke-linejoin: round; }
+.radar .thin .rshape { stroke-dasharray: 2 4; fill-opacity: .08; }
+.radar .mk { stroke: var(--card); stroke-width: 1; }
+.radar .off { display: none; }
+
 /* Ask AI conversation */
 .thread { margin: 16px 0; }
 .thread .turn { margin: 18px 0; }

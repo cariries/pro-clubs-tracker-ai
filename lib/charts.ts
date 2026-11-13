@@ -18,6 +18,8 @@ export interface ChartBar {
   value: number;
   /** A small tag beside the value. "*" = too few games to rank; "W", "D" or "L" = the match result; a number = games played. */
   note?: string;
+  /** Radar only: the real value as text (for example "81%" or "0.85"), because `value` is the 0-100 position on the axis. */
+  raw?: string;
 }
 
 export interface ChartSeries {
@@ -28,7 +30,7 @@ export interface ChartSeries {
 }
 
 /** How the page draws a chart: vertical columns (one column group per member or club) or lines across the matches. */
-export type ChartKind = "columns" | "lines";
+export type ChartKind = "columns" | "lines" | "radar";
 
 export interface ChartSpec {
   key: string;
@@ -37,6 +39,8 @@ export interface ChartSpec {
   title: Bi;
   /** Lines only: the x categories in order (match #1 is the oldest). */
   categories?: string[];
+  /** Radar only: the axes in order, clockwise from the top. Every series has one bar per axis, labelled with the axis's English name. */
+  axes?: Bi[];
   /** Labels whose values rest on too few games to be reliable; the page draws these lighter. */
   thin?: string[];
   /** Whole numbers only (goals, assists): the axis never shows a fractional tick. */
@@ -265,12 +269,69 @@ export function recentMatchCharts(clubName: string, recent: RecentMatches | null
   return out;
 }
 
+/** Members drawn on the radar at the start; the rest are switched on from the legend. */
+export const RADAR_ON_BY_DEFAULT = 3;
+
+const r1 = (v: number) => Math.round(v * 10) / 10;
+
+/**
+ * A radar of the members: how each one is shaped across pass, shot and tackle success, match rating and (when anyone has
+ * any) goals and assists per game. Every axis is on one 0-100 scale, so the shapes can be compared:
+ *  - pass, shot and tackle are EA's own percentages, as they are;
+ *  - rating is out of 10, drawn x10;
+ *  - goals and assists per game have no natural top, so they are drawn against the squad's best (100 = the best in this
+ *    squad). Their axis names say so, and the table shows the real numbers.
+ * A member is drawn only if EVERY axis has a value: a polygon with a hidden corner would mislead. Thin samples (under 5
+ * games) are drawn dotted. Returns null when fewer than one member qualifies or fewer than 3 axes exist.
+ */
+export function radarChart(club: ClubProfile): ChartSpec | null {
+  const members = topMembers(club);
+  const maxGpg = Math.max(0, ...members.map((m) => (finite(m.goalsPerGame) ? m.goalsPerGame : 0)));
+  const maxApg = Math.max(0, ...members.map((m) => (finite(m.assistsPerGame) ? m.assistsPerGame : 0)));
+
+  interface Axis {
+    name: Bi;
+    value: (m: MemberRow) => number | null;
+    raw: (m: MemberRow) => string;
+  }
+  const axes: Axis[] = [
+    { name: { en: "Pass %", zh: "傳球成功率" }, value: (m) => m.passPct, raw: (m) => `${m.passPct}%` },
+    { name: { en: "Shot %", zh: "射門成功率" }, value: (m) => m.shotPct, raw: (m) => `${m.shotPct}%` },
+    { name: { en: "Tackle %", zh: "搶截成功率" }, value: (m) => m.tacklePct, raw: (m) => `${m.tacklePct}%` },
+    { name: { en: "Rating (x10)", zh: "評分(x10)" }, value: (m) => (finite(m.rating) ? m.rating * 10 : null), raw: (m) => `${m.rating}` },
+  ];
+  if (maxGpg > 0) axes.push({ name: { en: "Goals per game (vs squad best)", zh: "場均入球(對比球隊最高)" }, value: (m) => (finite(m.goalsPerGame) ? (m.goalsPerGame / maxGpg) * 100 : null), raw: (m) => `${m.goalsPerGame}` });
+  if (maxApg > 0) axes.push({ name: { en: "Assists per game (vs squad best)", zh: "場均助攻(對比球隊最高)" }, value: (m) => (finite(m.assistsPerGame) ? (m.assistsPerGame / maxApg) * 100 : null), raw: (m) => `${m.assistsPerGame}` });
+
+  const complete = members.filter((m) => axes.every((a) => finite(a.value(m))));
+  if (complete.length === 0 || axes.length < 3) return null;
+  const thin = complete.filter((m) => !m.ranked).map(label);
+  return {
+    key: "members-radar",
+    kind: "radar",
+    title: { en: "Member profile radar (season)", zh: "球員能力雷達圖(本季)" },
+    axes: axes.map((a) => a.name),
+    series: complete.map((m) => ({
+      name: { en: m.name, zh: m.name },
+      unit: "",
+      bars: axes.map((a) => ({ label: a.name.en, value: r1(Math.min(100, Math.max(0, a.value(m) as number))), raw: a.raw(m) })),
+    })),
+    max: 100,
+    thin,
+    footnote: {
+      en: `Each corner is one stat on a 0-100 scale: pass, shot and tackle are EA's percentages, rating is out of 10 (x10)${maxGpg > 0 || maxApg > 0 ? ", and goals and assists per game are measured against the best in this squad (100 = the best)" : ""}. A bigger shape is a stronger all-round player. Members with fewer than 5 games are dotted and their percentages are unreliable. Only members with every stat are drawn.`,
+      zh: `每個角代表一項數據,刻度 0-100:傳球、射門、搶截係 EA 嘅百分比,評分滿分 10(x10)${maxGpg > 0 || maxApg > 0 ? ",而場均入球同助攻就同呢支球隊最高者比較(100 = 最高)" : ""}。形狀愈大,代表愈全面。少於 5 場嘅球員用點線,而且百分比未必可靠。只會畫齊晒所有數據嘅球員。`,
+    },
+  };
+}
+
 /** The charts for a comparison, whichever mode it is in. */
 export function chartsFor(c: { mode: "single" | "compare"; clubs: readonly ClubProfile[]; metrics: readonly MetricComparison[] }): ChartSpec[] {
   if (c.mode === "single") {
     const club = c.clubs[0];
     if (!club) return [];
-    return [...singleClubCharts(club), ...recentMatchCharts(club.name ?? club.label, club.recent, true)];
+    const radar = radarChart(club);
+    return [...singleClubCharts(club), ...(radar ? [radar] : []), ...recentMatchCharts(club.name ?? club.label, club.recent, true)];
   }
   // several clubs: one goals-per-match chart each (member lines would be unreadable side by side)
   return [...compareClubsCharts(c.clubs, c.metrics), ...c.clubs.flatMap((club) => recentMatchCharts(club.name ?? club.label, club.recent, false))];

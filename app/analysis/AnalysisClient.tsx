@@ -8,10 +8,10 @@ import { PUBLIC_PLATFORMS } from "@/lib/public-clubs";
 import { fill, pick, type Bi, type Lang } from "@/lib/i18n";
 import ChartView from "@/components/ChartView";
 import { chartsFor } from "@/lib/charts";
-import { ASK, MEMBER_COLS, THREAD } from "@/lib/ui-text";
+import { ASK, MEMBER_COLS, REFRESH, THREAD } from "@/lib/ui-text";
+import { ageParts, ageSeconds, readRefreshResponse, type ClubInfo } from "@/lib/ask-clubs";
 import { historyOf, parseStoredThread, serializeThread, threadFull, threadKey, turnsLeft, type ThreadTurn } from "@/lib/ask-thread";
 
-export type ClubNames = Record<string, string>;
 
 type Provider = { configured: false; missing: string[]; problems: string[] } | { configured: true; host: string; model: string; demo: boolean; userDailyLimit: number; maxTurns: number };
 
@@ -57,7 +57,7 @@ const ERRORS: Record<string, Bi> = {
   internal_error: { en: "An unexpected server error occurred.", zh: "伺服器發生未預期錯誤。" },
 };
 
-export default function AnalysisClient({ initialClubs, names, provider, max, lang }: { initialClubs: AskClub[]; names: ClubNames; provider: Provider; max: number; lang: Lang }) {
+export default function AnalysisClient({ initialClubs, infos, provider, max, lang }: { initialClubs: AskClub[]; infos: Record<string, ClubInfo>; provider: Provider; max: number; lang: Lang }) {
   const clubs = initialClubs;
   const [question, setQuestion] = useState("");
   const [language, setLanguage] = useState<"zh" | "en">(lang);
@@ -66,6 +66,16 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
   const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
   const [shown, setShown] = useState<Shown[]>([]);
   const maxTurns = provider.configured ? provider.maxTurns : 8;
+  // "Refresh now": asks EA again for the chosen clubs, ignoring the 15-minute window. The data age comes from the server
+  // (when the page loaded) and is updated here after a refresh; no club data is sent to the browser for this.
+  const [info, setInfo] = useState<Record<string, ClubInfo>>(infos);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string[]>([]);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const [platform, setPlatform] = useState<(typeof PUBLIC_PLATFORMS)[number]>(clubs[0]?.platform === "nx" ? "nx" : "common-gen5");
 
   // The conversation lives in this tab only (sessionStorage): nothing is stored on the server. It is keyed by the chosen
@@ -133,6 +143,64 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
   const canRun = blockers.length === 0;
   const scope = describeScope(gate);
   const clubsValue = clubs.map((c) => `${c.clubId}.${c.platform}`).join(",");
+
+  function ageText(fetchedAt: string | null | undefined): string {
+    const sec = ageSeconds(fetchedAt, nowMs);
+    if (sec === null) return pick(REFRESH.ageNone, lang);
+    const a = ageParts(sec);
+    const when = a.unit === "now" ? pick(REFRESH.justNow, lang) : fill(pick(a.unit === "min" ? REFRESH.minAgo : a.unit === "hour" ? REFRESH.hourAgo : REFRESH.dayAgo, lang), { n: a.n });
+    return fill(pick(REFRESH.age, lang), { when });
+  }
+
+  function wordResult(r: { result: string; clubName?: string | null; retryAfterSec?: number }, limitPerHour: number | null): string {
+    const name = r.clubName ?? "";
+    switch (r.result) {
+      case "refreshed": return fill(pick(REFRESH.refreshed, lang), { name });
+      case "too_recent": return fill(pick(REFRESH.tooRecent, lang), { name, n: Math.max(1, Math.ceil(r.retryAfterSec ?? 60)) });
+      case "limit": return fill(pick(REFRESH.limit, lang), { max: limitPerHour ?? 20 });
+      case "busy": return pick(REFRESH.busy, lang);
+      case "kept_old": return pick(REFRESH.keptOld, lang);
+      case "blocked": return pick(REFRESH.blocked, lang);
+      case "not_found": return pick(REFRESH.notFound, lang);
+      case "too_large": return pick(REFRESH.tooLarge, lang);
+      case "skipped": return pick(REFRESH.skipped, lang);
+      default: return pick(REFRESH.eaError, lang);
+    }
+  }
+
+  async function refreshNow() {
+    if (refreshing || clubs.length === 0) return;
+    setRefreshing(true);
+    setRefreshMsg([]);
+    try {
+      const res = await fetch("/api/refresh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clubs }) });
+      const body = await res.json().catch(() => null);
+      if (res.status === 401) {
+        setRefreshMsg([pick(REFRESH.signIn, lang)]);
+        return;
+      }
+      const parsed = readRefreshResponse(body);
+      if (!res.ok || !parsed) {
+        setRefreshMsg([pick(REFRESH.failed, lang)]);
+        return;
+      }
+      const next = { ...info };
+      const lines: string[] = [];
+      for (const r of parsed.results) {
+        const key = `${r.clubId}.${r.platform}`;
+        // a fetch time is only taken from a result that really fetched or reports the copy's own time
+        if (r.fetchedAt) next[key] = { name: r.clubName ?? next[key]?.name ?? null, fetchedAt: r.fetchedAt };
+        lines.push(wordResult(r, parsed.limitPerHour));
+      }
+      setInfo(next);
+      setRefreshMsg(lines);
+      setNowMs(Date.now());
+    } catch {
+      setRefreshMsg([pick(ASK.networkError, lang)]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
@@ -214,11 +282,29 @@ export default function AnalysisClient({ initialClubs, names, provider, max, lan
         <ul className="chosen">
           {clubs.map((c) => (
             <li key={`${c.clubId}.${c.platform}`}>
-              <strong>{names[`${c.clubId}.${c.platform}`] ?? `Club ${c.clubId}`}</strong> · {c.platform === "nx" ? "Nintendo Switch" : "PlayStation / Xbox / PC"} · ID {c.clubId}{" "}
+              <strong>{info[`${c.clubId}.${c.platform}`]?.name ?? `Club ${c.clubId}`}</strong> · {c.platform === "nx" ? "Nintendo Switch" : "PlayStation / Xbox / PC"} · ID {c.clubId}
+              <span className="muted"> · {ageText(info[`${c.clubId}.${c.platform}`]?.fetchedAt)}</span>{" "}
               <a href={askPath(removeAskClub(clubs, c))}>{pick(ASK.remove, lang)}</a>
             </li>
           ))}
         </ul>
+      )}
+      {clubs.length > 0 && (
+        <div className="refresh">
+          <button type="button" className="secondary" onClick={refreshNow} disabled={refreshing}>
+            {pick(refreshing ? REFRESH.working : REFRESH.button, lang)}
+          </button>
+          <p className="muted">
+            <small>{pick(REFRESH.help, lang)}</small>
+          </p>
+          {refreshMsg.length > 0 && (
+            <ul role="status" className="refresh-msgs">
+              {refreshMsg.map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       {clubs.length < max && (
         <form action="/search" method="get" className="search left">

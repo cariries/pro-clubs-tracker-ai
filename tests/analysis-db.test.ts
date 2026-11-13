@@ -196,3 +196,42 @@ describe("a user that does not exist", () => {
     await expect(reserveBudget({ userId: "ghost-user", provider: "p", model: "m", estMicroUsd: 1, capMicroUsd: 1000, userLimit: 5 }, db as never)).rejects.toThrow();
   });
 });
+
+import { refreshClubData } from "@/lib/club-cache";
+
+describe("refresh now on the REAL cache table", () => {
+  const deps = (over: Partial<Parameters<typeof refreshClubData>[0]> = {}) => ({
+    ...cacheDeps(),
+    consumeRefresh: async () => ({ ok: true, retryAfterSec: 0 }),
+    ...over,
+  });
+  it("overwrites the shared row in place (one row, a newer time), and the next question uses it with NO EA call", async () => {
+    await analyze(realDeps(), "u1", { ...input, clubs: [REFS[0]] }); // first fetch writes the row
+    expect(state.eaCalls).toBe(1);
+    state.now = new Date(T0.getTime() + 10 * 60_000); // 10 minutes later: still fresh for a normal question
+    const r = await refreshClubData(deps(), "914493", "common-gen5");
+    expect(r.result).toBe("refreshed");
+    expect(state.eaCalls).toBe(2); // the refresh WENT to EA although the copy was only 10 minutes old
+    const rows = await cacheRows();
+    expect(rows).toHaveLength(1);
+    expect(Number(rows[0].ms)).toBe(state.now.getTime());
+    // a different user's question right after: served from the refreshed copy, no third EA call
+    const after = await analyze(realDeps(), "u2", { ...input, clubs: [REFS[0]] });
+    expect(after.ok && after.fetchedFromEa).toBe(0);
+    expect(state.eaCalls).toBe(2);
+  });
+  it("a refresh under a minute after a fetch changes nothing and calls no EA", async () => {
+    await analyze(realDeps(), "u1", { ...input, clubs: [REFS[0]] });
+    state.now = new Date(T0.getTime() + 20_000);
+    expect((await refreshClubData(deps(), "914493", "common-gen5")).result).toBe("too_recent");
+    expect(state.eaCalls).toBe(1);
+    expect(Number((await cacheRows())[0].ms)).toBe(T0.getTime());
+  });
+  it("a blocked refresh leaves the stored copy exactly as it was", async () => {
+    await analyze(realDeps(), "u1", { ...input, clubs: [REFS[0]] });
+    state.now = new Date(T0.getTime() + 10 * 60_000);
+    state.blocked = true;
+    expect((await refreshClubData(deps(), "914493", "common-gen5")).result).toBe("blocked");
+    expect(Number((await cacheRows())[0].ms)).toBe(T0.getTime());
+  });
+});

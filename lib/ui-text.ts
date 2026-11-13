@@ -194,3 +194,34 @@ export const LINES = {
   aria: { en: "Line chart", zh: "折線圖" },
   hiddenCount: { en: "{n} more hidden", zh: "另外 {n} 條已隱藏" },
 } satisfies Record<string, Bi>;
+
+export const REFRESH = {
+  button: { en: "Refresh now", zh: "立即更新" },
+  working: { en: "Refreshing…", zh: "更新緊…" },
+  age: { en: "data from {when}", zh: "資料更新於{when}" },
+  ageNone: { en: "not loaded yet", zh: "尚未載入" },
+  justNow: { en: "just now", zh: "剛剛" },
+  minAgo: { en: "{n} min ago", zh: "{n} 分鐘前" },
+  hourAgo: { en: "{n} h ago", zh: "{n} 小時前" },
+  dayAgo: { en: "{n} days ago", zh: "{n} 日前" },
+  help: { en: "Data is shared for about 15 minutes. Refresh asks EA again (5 calls per club, once a minute per club, 20 per hour). It does not use the AI.", zh: "資料會共用約 15 分鐘。更新會重新向 EA 查詢(每個球會 5 次呼叫,每個球會每分鐘最多一次,每小時最多 20 次),唔會用到 AI。" },
+  refreshed: { en: "Updated {name}.", zh: "已更新 {name}。" },
+  tooRecent: { en: "{name} was loaded under a minute ago; try again in {n} s.", zh: "{name} 剛剛先載入過,請 {n} 秒後再試。" },
+  limit: { en: "You have used your {max} refreshes for this hour. Try again later.", zh: "你今個鐘嘅 {max} 次更新已用完,請稍後再試。" },
+  busy: { en: "EA is busy or paused right now. Try again in a moment.", zh: "EA 而家忙緊或者暫停咗,請稍後再試。" },
+  keptOld: { en: "EA's new answer was incomplete, so the previous data was kept.", zh: "EA 今次回應唔完整,所以保留咗之前嘅資料。" },
+  blocked: { en: "EA appears to be blocking requests. Nothing was changed. Try again later.", zh: "EA 似乎封鎖咗請求,冇改動任何資料。請稍後再試。" },
+  eaError: { en: "EA did not respond properly. Try again in a moment.", zh: "EA 冇正常回應,請稍後再試。" },
+  notFound: { en: "EA has no club with that ID on that platform.", zh: "EA 喺呢個平台冇呢個編號嘅球會。" },
+  tooLarge: { en: "This club has too much data to store.", zh: "呢個球會資料太多,無法儲存。" },
+  skipped: { en: "Not tried, because an earlier club could not be refreshed.", zh: "冇嘗試,因為前面有球會未能更新。" },
+  signIn: { en: "Please sign in first.", zh: "請先登入。" },
+  failed: { en: "Could not refresh. Try again.", zh: "更新失敗,請再試。" },
+} satisfies Record<string, Bi>;
+
+export const RADAR = {
+  aria: { en: "Radar chart", zh: "雷達圖" },
+  tableTitle: { en: "Show the real numbers as a table", zh: "以表格顯示真實數字" },
+  stat: { en: "Stat", zh: "數據" },
+  tapHint: { en: "Tap a name to show or hide its shape. The first three are shown to start.", zh: "撳個名就可以顯示或隱藏該形狀。預設顯示頭三位。" },
+} satisfies Record<string, Bi>;

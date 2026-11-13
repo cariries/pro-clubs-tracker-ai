@@ -1,5 +1,5 @@
 import { auth, authConfigured, signIn } from "@/auth";
-import { parseAskClubs } from "@/lib/ask-clubs";
+import { parseAskClubs, type ClubInfo } from "@/lib/ask-clubs";
 import { MAX_CLUBS } from "@/lib/club-compare";
 import { describeProvider } from "@/lib/llm";
 import { readClubCache } from "@/lib/club-cache-db";
@@ -10,17 +10,16 @@ import AnalysisClient from "./AnalysisClient";
 
 export const dynamic = "force-dynamic";
 
-/** Club names for the chosen clubs, read from the shared cache only (a database read; this never calls EA). */
-async function clubNames(clubs: ReturnType<typeof parseAskClubs>): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
+/** Name and data age for the chosen clubs, read from the shared cache only (a database read; this never calls EA). */
+async function clubInfos(clubs: ReturnType<typeof parseAskClubs>): Promise<Record<string, ClubInfo>> {
+  const out: Record<string, ClubInfo> = {};
   if (!process.env.DATABASE_URL) return out;
   for (const c of clubs) {
     try {
       const row = await readClubCache(c.clubId, c.platform);
-      const name = row?.capture.summary.clubName;
-      if (name) out[`${c.clubId}.${c.platform}`] = name;
+      if (row) out[`${c.clubId}.${c.platform}`] = { name: row.capture.summary.clubName ?? null, fetchedAt: row.fetchedAt.toISOString() };
     } catch {
-      /* a name is a nicety; the page works without it */
+      /* a name and an age are niceties; the page works without them */
     }
   }
   return out;
@@ -58,5 +57,5 @@ export default async function AnalysisPage({ searchParams }: { searchParams: Pro
       </main>
     );
   }
-  return <AnalysisClient initialClubs={clubs} names={await clubNames(clubs)} provider={describeProvider()} max={MAX_CLUBS} lang={lang} />;
+  return <AnalysisClient initialClubs={clubs} infos={await clubInfos(clubs)} provider={describeProvider()} max={MAX_CLUBS} lang={lang} />;
 }
