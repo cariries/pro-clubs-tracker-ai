@@ -3,10 +3,8 @@
 // oddly shaped part yields null/empty, never a throw.
 import type { PartKey, PartStatus } from "./club-capture";
 
-export interface Bi {
-  en: string;
-  zh: string;
-}
+export type { Bi } from "./i18n";
+import type { Bi } from "./i18n";
 
 export const STATUS_LABEL: Record<PartStatus, Bi> = {
   ok: { en: "OK", zh: "成功" },

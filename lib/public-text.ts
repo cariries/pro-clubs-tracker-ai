@@ -1,6 +1,6 @@
 // Bilingual wording for the public pages. Pure, so it is tested. Messages never include what the visitor typed
 // (it is shown separately by the page, escaped by React), and never include provider or database detail.
-import type { Bi } from "./data-utils";
+import type { Bi } from "./i18n";
 
 export type HomeError = "too_short" | "too_long" | "bad_characters" | "bad_platform" | "none" | "busy" | "blocked" | "ea" | "unavailable";
 

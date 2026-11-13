@@ -1,4 +1,4 @@
-# FC 2X Pro Club Statistic Tracker
+# ProClubs Tracker (ProClubs 速查)
 
 A standalone, bilingual (Traditional Cantonese / English) web app for EA Sports FC players to view live Pro Clubs stats and run AI-driven performance analysis.
 
@@ -17,7 +17,7 @@ A standalone, bilingual (Traditional Cantonese / English) web app for EA Sports 
 | Auth & Profile | Secure login (Discord) |
 | Shared club cache | A club fetched from EA is reused by all users for 15 minutes (table `club_cache`); keeps EA calls low |
 | AI Analysis Pipeline | Clubs are compared in code; a compact digest plus the user's question go to the LLM, which returns a validated bilingual report and bar-chart data |
-| Bilingual UI | Planned: next-intl. Today pages show English and Cantonese side by side |
+| Bilingual UI | Built 2026-11-13, awaiting redeploy: a small in-repo i18n (no package). Every page shows ONE language, Cantonese by default, with an English switch in the header (remembered in a cookie) |
 
 ## Current State
 Last reviewed 2026-11-13. Milestones M0 to M2 are done (with caveats), M3 works, the public pages work (user-reported), Ask AI on live clubs is deployed (user-reported) but untried. **Open work and risks are tracked in the progress pages (`progress.en.html` / `progress.zh-HK.html`), which are the source of truth for status.**
@@ -26,11 +26,11 @@ Last reviewed 2026-11-13. Milestones M0 to M2 are done (with caveats), M3 works,
 |---|---|
 | EA proxy (`/api/ea/<endpoint>`) | 10 endpoints, parsed and raw output. Verified live for `memberStats` and `overallStats`; others tested on saved samples |
 | Login | Discord via Auth.js; sign-in verified on Vercel (user-reported) |
-| Shared club cache | Built 2026-11-13, tested on in-process Postgres and with fakes; deployed with the `club_cache` table added in Neon (user-reported); the user saw the cache serve a repeat ask without refreshing `fetchedAt` (user-reported). Club names were blank on the choose page `/select`: cause was a double parse in the search loader; fixed with regression tests and confirmed displayed after redeploy (user-reported) |
+| Shared club cache | Built 2026-11-13, tested on in-process Postgres and with fakes; deployed with the `club_cache` table added in Neon (user-reported); the user saw the cache serve a repeat ask without refreshing `fetchedAt` (user-reported). Renamed to ProClubs Tracker / ProClubs 速查; sign-in button or avatar menu (with Sign out) and the language switch are at the top right (built 2026-11-13, awaiting redeploy). Bilingual framework and first visual pass BUILT 2026-11-13 (the user confirmed the mobile layout and light/dark mode work on their phone): one language per page (Cantonese default, English switch in the header, cookie), one stylesheet with light and dark colours and a phone layout. Club names were blank on the choose page `/select`: cause was a double parse in the search loader; fixed with regression tests and confirmed displayed after redeploy (user-reported) |
 | Public pages (`/`, `/select`, `/club/<id>`) | No login. Search a club by name: one match opens the club page, several open a choose page. A club page shows the record, rates and every member's statistics. EA calls are protected by per-visitor and global limits and a circuit breaker. Deployed; search is reported working (user-reported); the choose page and club page are not yet confirmed. Clubs only (no member search). |
 | Ask AI (`/analysis`) | Search a club to add it (up to 4, kept in the page URL). **One club:** its own statistics and every member (season stats, pass/shot/tackle success %, career totals). **2 to 4 clubs:** compare clubs with each other, or members across clubs. Data comes through the shared 15-minute cache, else live from EA. Login required. Built and tested with mocks and real SQL; deployed (user-reported) but **never tried by the user and never run against real EA** |
 | Tests | `npm test` (354 tests), `npm run typecheck`, `npm run build`. They do not cover pages, API routes or real services |
-| Known gaps | No i18n framework yet; no end-to-end tests; `npm audit` reports a high-severity `postcss` advisory in `next` (fix is a breaking upgrade) |
+| Known gaps | The new language switch and visual design have not been seen in a browser (phone width and dark mode unchecked by eye); the Cantonese wording is unreviewed; no end-to-end tests; `npm audit` reports a high-severity `postcss` advisory in `next` (fix is a breaking upgrade) |
 
 What is actually installed (the stack table below separates it from what is only planned):
 
@@ -42,7 +42,7 @@ What is actually installed (the stack table below separates it from what is only
 | Auth | Auth.js (next-auth v5 beta), Discord OAuth, JWT sessions | in use |
 | LLM | Small adapter for OpenAI-compatible chat-completions endpoints, configured by env vars (the Vercel AI SDK from the original plan was not used) | built, unrun |
 | Tests | Vitest + PGlite (in-process Postgres) | in use |
-| i18n | next-intl (`zh-HK` default, `en`) | **planned, not installed** |
+| i18n | In-repo module (`lib/i18n.ts`, `lib/ui-text.ts`; Cantonese default, English) | built, not deployed. next-intl was NOT used |
 | Charts | Recharts | **planned, not installed** (the AI page draws simple bars itself) |
 | End-to-end tests | Playwright | **planned, not installed** |
 

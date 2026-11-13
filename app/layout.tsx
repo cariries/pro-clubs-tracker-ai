@@ -1,18 +1,22 @@
 import type { ReactNode } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import { getLang } from "@/lib/lang-server";
+import { COMMON, htmlLang, pick } from "@/lib/i18n";
 import "./globals.css";
 
-export const metadata = {
-  title: "FC 2X Pro Club Tracker",
-  description: "Search EA Sports FC Pro Clubs clubs and see their statistics. 搜尋 EA Sports FC Pro Clubs 球會並查看統計。",
-};
+export async function generateMetadata() {
+  const lang = await getLang();
+  return { title: pick(COMMON.brand, lang), description: pick(COMMON.metaDescription, lang) };
+}
 
-// The page language is mixed on purpose (English and Cantonese side by side) until the i18n framework arrives.
-export default function RootLayout({ children }: { children: ReactNode }) {
+// Every page shows one language, chosen by the visitor (cookie, Cantonese by default). Reading the cookie makes the
+// layout dynamic, which every page here already is.
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const lang = await getLang();
   return (
-    <html lang="en">
+    <html lang={htmlLang(lang)}>
       <body>
-        <SiteHeader />
+        <SiteHeader lang={lang} />
         {children}
       </body>
     </html>

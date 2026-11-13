@@ -6,6 +6,9 @@ import { checkClubName, clubRowLabel, homePath, isPublicPlatform, profilePath } 
 import { clientKey, searchClubs } from "@/lib/public-data";
 import { openBreaker, realGate } from "@/lib/public-db";
 import { divisionLabel } from "@/lib/ea-labels";
+import { getLang } from "@/lib/lang-server";
+import { fill, pick } from "@/lib/i18n";
+import { SELECT } from "@/lib/ui-text";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -13,6 +16,7 @@ export const maxDuration = 30;
 // Public: no login. Several clubs matched the name; the visitor chooses one. The search is repeated here (EA's
 // answer is cached for 5 minutes) so this page works when opened directly or refreshed.
 export default async function SelectPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const lang = await getLang();
   const sp = await searchParams;
   const rawName = typeof sp.name === "string" ? sp.name : "";
   const platform = typeof sp.platform === "string" ? sp.platform : "";
@@ -33,15 +37,12 @@ export default async function SelectPage({ searchParams }: { searchParams: Promi
   const { clubs, total } = r.outcome;
   return (
     <main>
-      <h1>Choose a club / 揀選球會</h1>
-      <p className="muted">
-        {total} clubs match this name; most games played first. / 有 {total} 個球會符合呢個名稱,以出賽場數多至少排列。
-      </p>
+      <h1>{pick(SELECT.title, lang)}</h1>
+      <p className="muted">{fill(pick(SELECT.count, lang), { total })}</p>
       <div className="card">
         <ul className="list">
           {clubs.map((c) => {
-            const div = divisionLabel(c.currentDivision, "en");
-            const divZh = divisionLabel(c.currentDivision, "zh");
+            const div = divisionLabel(c.currentDivision, lang);
             const row = clubRowLabel(c);
             return (
               <li key={c.clubId}>
@@ -49,25 +50,21 @@ export default async function SelectPage({ searchParams }: { searchParams: Promi
                   <strong>{row.name}</strong>{" "}
                   <span className="muted">
                     · {row.idText}
-                    {row.nameMissing ? " · EA gave no name / EA 冇提供名稱" : ""} · {c.gamesPlayed ?? "–"} games / 場 · {c.wins ?? "–"}W {c.ties ?? "–"}D {c.losses ?? "–"}L
-                    {div ? ` · ${div} / ${divZh}` : ""}
+                    {row.nameMissing ? ` · ${pick(SELECT.noName, lang)}` : ""} · {c.gamesPlayed ?? "–"} {pick(SELECT.games, lang)} · {c.wins ?? "–"}W {c.ties ?? "–"}D {c.losses ?? "–"}L
+                    {div ? ` · ${div}` : ""}
                   </span>
                 </span>
                 <a className="button" href={fromAsk ? askPath(addAskClub(ask, { clubId: c.clubId, platform }).clubs) : profilePath(c.clubId, platform)}>
-                  {fromAsk ? "Add to Ask AI / 加入問 AI" : "View / 查看"}
+                  {pick(fromAsk ? SELECT.addToAsk : SELECT.view, lang)}
                 </a>
               </li>
             );
           })}
         </ul>
       </div>
-      {total > clubs.length && (
-        <p className="muted">
-          Showing the first {clubs.length}. Narrow the name to see others. / 只顯示頭 {clubs.length} 個,請輸入更精確嘅名稱。
-        </p>
-      )}
+      {total > clubs.length && <p className="muted">{fill(pick(SELECT.showingFirst, lang), { n: clubs.length })}</p>}
       <p>
-        <a href={fromAsk ? askPath(ask) : "/"}>{fromAsk ? "← Back to Ask AI / 返回問 AI" : "← Search again / 重新搜尋"}</a>
+        <a href={fromAsk ? askPath(ask) : "/"}>{pick(fromAsk ? SELECT.backAsk : SELECT.searchAgain, lang)}</a>
       </p>
     </main>
   );

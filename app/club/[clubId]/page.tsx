@@ -9,6 +9,9 @@ import { clientKey, loadProfile } from "@/lib/public-data";
 import { openBreaker, realGate } from "@/lib/public-db";
 import { formatUnix } from "@/lib/data-utils";
 import Stat from "@/components/Stat";
+import { getLang } from "@/lib/lang-server";
+import { fill, pick } from "@/lib/i18n";
+import { CLUB } from "@/lib/ui-text";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -18,6 +21,7 @@ const n = (v: number | null) => (v === null ? "–" : String(v));
 
 // Public: no login. The club's record and every member, fetched live from EA (cached 5 minutes), nothing stored.
 export default async function ClubPage({ params, searchParams }: { params: Promise<{ clubId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const lang = await getLang();
   const { clubId } = await params;
   const sp = await searchParams;
   const platform = typeof sp.platform === "string" ? sp.platform : "common-gen5";
@@ -36,70 +40,64 @@ export default async function ClubPage({ params, searchParams }: { params: Promi
   const rec = p.record;
   const name = p.name ?? `Club ${clubId}`;
   const warnings = [
-    ...(club.thin ? [{ en: `This club has only ${rec?.games ?? 0} league games, so its rates are not very reliable.`, zh: `呢個球會只有 ${rec?.games ?? 0} 場聯賽,所以比率未必好可靠。` }] : []),
-    ...(club.dataAgeDays !== null && club.dataAgeDays > 14
-      ? [describeWarning({ code: "stale_data", club: name, days: club.dataAgeDays })]
-      : []),
-    ...(club.failedParts.length > 0 ? [{ en: "Some data could not be loaded from EA, so parts of this page may be missing.", zh: "部分資料未能從 EA 載入,所以本頁部分內容可能欠缺。" }] : []),
+    ...(club.thin ? [fill(pick(CLUB.thin, lang), { games: rec?.games ?? 0 })] : []),
+    ...(club.dataAgeDays !== null && club.dataAgeDays > 14 ? [pick(describeWarning({ code: "stale_data", club: name, days: club.dataAgeDays }), lang)] : []),
+    ...(club.failedParts.length > 0 ? [pick(CLUB.partial, lang)] : []),
   ];
 
   return (
     <main>
       <h1>{name}</h1>
       <p className="muted">
-        {platform === "common-gen5" ? "PlayStation / Xbox / PC" : "Nintendo Switch"} · Club ID / 球會編號 {clubId}
-        {club.newestMatchAt ? <> · newest EA match / EA 最新賽事 {club.newestMatchAt}</> : null}
+        {pick(platform === "common-gen5" ? CLUB.platformGen5 : CLUB.platformNx, lang)} · {pick(CLUB.clubId, lang)} {clubId}
+        {club.newestMatchAt ? <> · {pick(CLUB.newestMatch, lang)} {club.newestMatchAt}</> : null}
       </p>
       {warnings.map((w, i) => (
         <div className="notice" key={i}>
-          {w.en}
-          <br />
-          {w.zh}
+          {w}
         </div>
       ))}
 
       {rec ? (
         <section>
-          <h2>Club record / 球會戰績</h2>
+          <h2>{pick(CLUB.recordTitle, lang)}</h2>
           <div className="stats">
-            <Stat k="Played / 場數" v={n(rec.games)} />
-            <Stat k="Win / 勝" v={n(rec.wins)} />
-            <Stat k="Draw / 和" v={n(rec.ties)} />
-            <Stat k="Loss / 負" v={n(rec.losses)} />
-            <Stat k="Win rate / 勝率" v={pct(club.winRate)} />
-            <Stat k="Goals for per game / 場均入球" v={n(club.goalsForPerGame)} />
-            <Stat k="Goals against per game / 場均失球" v={n(club.goalsAgainstPerGame)} />
-            <Stat k="Skill rating / 技術評分" v={n(p.skillRating)} />
+            <Stat k={pick(CLUB.played, lang)} v={n(rec.games)} />
+            <Stat k={pick(CLUB.win, lang)} v={n(rec.wins)} />
+            <Stat k={pick(CLUB.draw, lang)} v={n(rec.ties)} />
+            <Stat k={pick(CLUB.loss, lang)} v={n(rec.losses)} />
+            <Stat k={pick(CLUB.winRate, lang)} v={pct(club.winRate)} />
+            <Stat k={pick(CLUB.gfpg, lang)} v={n(club.goalsForPerGame)} />
+            <Stat k={pick(CLUB.gapg, lang)} v={n(club.goalsAgainstPerGame)} />
+            <Stat k={pick(CLUB.skill, lang)} v={n(p.skillRating)} />
           </div>
         </section>
       ) : (
-        <div className="notice">
-          No record is available for this club. / 呢個球會冇可用戰績。
-        </div>
+        <div className="notice">{pick(CLUB.noRecord, lang)}</div>
       )}
 
       <section>
-        <h2>Members / 球員 ({club.members.length})</h2>
+        <h2>{pick(CLUB.members, lang)} ({club.members.length})</h2>
         {club.members.length === 0 ? (
-          <p className="muted">No member statistics available. / 冇可用嘅球員統計。</p>
+          <p className="muted">{pick(CLUB.noMembers, lang)}</p>
         ) : (
           <div className="card tablewrap">
             <table>
               <thead>
                 <tr>
-                  <th>Name / 名</th>
-                  <th>Pos / 位置</th>
-                  <th>GP / 場</th>
-                  <th>G / 入球</th>
-                  <th>A / 助攻</th>
-                  <th>G per game / 場均入球</th>
-                  <th>Rating / 評分</th>
-                  <th>Pass % / 傳球</th>
-                  <th>Shot % / 射門</th>
-                  <th>Tackle % / 搶截</th>
-                  <th>MOTM</th>
-                  <th>Career GP / 生涯場</th>
-                  <th>Career G / 生涯入球</th>
+                  <th>{pick(CLUB.colName, lang)}</th>
+                  <th>{pick(CLUB.colPos, lang)}</th>
+                  <th>{pick(CLUB.colGp, lang)}</th>
+                  <th>{pick(CLUB.colG, lang)}</th>
+                  <th>{pick(CLUB.colA, lang)}</th>
+                  <th>{pick(CLUB.colGpg, lang)}</th>
+                  <th>{pick(CLUB.colRating, lang)}</th>
+                  <th>{pick(CLUB.colPass, lang)}</th>
+                  <th>{pick(CLUB.colShot, lang)}</th>
+                  <th>{pick(CLUB.colTackle, lang)}</th>
+                  <th>{pick(CLUB.colMotm, lang)}</th>
+                  <th>{pick(CLUB.colCareerGp, lang)}</th>
+                  <th>{pick(CLUB.colCareerG, lang)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,26 +126,26 @@ export default async function ClubPage({ params, searchParams }: { params: Promi
           </div>
         )}
         <p className="muted">
-          <small>* fewer than 5 games, so rates are not reliable / 少於 5 場,比率未必可靠。Crossing and dribbling are not available. / 未有傳中同盤帶數據。</small>
+          <small>{pick(CLUB.footnote, lang)}</small>
         </p>
       </section>
 
       <section className="card">
-        <h3 style={{ marginTop: 0 }}>Want to go further? / 想再深入?</h3>
+        <h3>{pick(CLUB.askTitle, lang)}</h3>
         <p>
           <a className="button" href={askPath([{ clubId, platform }])}>
-            Ask AI about this club / 問 AI 關於呢個球會
+            {pick(CLUB.askButton, lang)}
           </a>
         </p>
         <p className="muted">
-          <small>Sign in required. On the next page you can add up to 3 more clubs to compare. / 需要登入。下一頁可以再加最多 3 個球會作比較。</small>
+          <small>{pick(CLUB.askNote, lang)}</small>
         </p>
       </section>
       <p>
-        <a href="/">← Search another club / 搜尋其他球會</a>
+        <a href="/">{pick(CLUB.back, lang)}</a>
         {" · "}
         <span className="muted">
-          {formatUnix(Math.floor(Date.now() / 1000))} (page loaded / 載入時間)
+          {formatUnix(Math.floor(Date.now() / 1000))} ({pick(CLUB.loaded, lang)})
         </span>
       </p>
     </main>

@@ -3,14 +3,14 @@
   const lang = document.documentElement.dataset.lang === "zh" ? "zh" : "en";
   const T = {
     en: {
-      title: "FC 2X Pro Club Statistic Tracker", sub: "Project progress",
+      title: "ProClubs Tracker", sub: "Project progress",
       updated: "Last updated", overall: "Overall progress", items: "items",
       done: "Done", progress: "In progress", todo: "Not started", blocked: "Blocked",
       milestones: "Milestones", risks: "Key risks", log: "Activity log",
       switchLabel: "粵語版", switchHref: "progress.zh-HK.html"
     },
     zh: {
-      title: "FC 2X Pro Club 數據追蹤器", sub: "項目進度",
+      title: "ProClubs 速查", sub: "項目進度",
       updated: "最後更新", overall: "整體進度", items: "項",
       done: "完成", progress: "進行中", todo: "未開始", blocked: "受阻",
       milestones: "里程碑", risks: "主要風險", log: "活動記錄",
