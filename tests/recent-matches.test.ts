@@ -149,3 +149,30 @@ describe("junk and missing data never throws", () => {
     expect(d).toEqual(copy);
   });
 });
+
+describe("a REAL player record pasted by the user from /api/ea/matches (2026-11-14)", () => {
+  // Trimmed to the fields we read; the values are exactly as EA returned them. The paste listed these players under club
+  // "591457" while the request asked for clubIds=591567, so the reader must take players ONLY from the club it is asked about.
+  const real = { playerId: "263986386", name: "darksaberyy", pos: "midfielder", goals: 2, assists: 0, rating: 6.4, shots: 5, passAttempts: 58, passesMade: 47, tackleAttempts: 13, tacklesMade: 3, secondsPlayed: 5542, mom: 0, redCards: 0 };
+  const match = (clubKey: string) => ({
+    matchId: "r1",
+    timestamp: 1_800_000_000,
+    clubs: { "591457": { goals: 2, goalsAgainst: 5, name: "A" }, "591567": { goals: 5, goalsAgainst: 2, name: "B" } },
+    players: { [clubKey]: [real] },
+  });
+  const d = (m: unknown) => ({ parts: { leagueMatches: { status: "ok", data: [m] } } });
+
+  it("reads the member's goals, assists, rating and pass completion from the real field names", () => {
+    const r = readRecentMatches(d(match("591457")), "591457")!;
+    expect(r.members).toHaveLength(1);
+    expect(r.members[0].name).toBe("darksaberyy");
+    expect(r.members[0].matches[0]).toMatchObject({ matchNo: 1, goals: 2, assists: 0, rating: 6.4 });
+    expect(r.members[0].matches[0].passPct).toBe(81); // 47 of 58 = 81.03
+    expect(r.matches[0]).toMatchObject({ goalsFor: 2, goalsAgainst: 5, outcome: "L", opponent: "B" });
+  });
+  it("asked about the OTHER club (591567), the same record is not counted as that club's member", () => {
+    const r = readRecentMatches(d(match("591457")), "591567")!;
+    expect(r.members).toEqual([]);
+    expect(r.matches[0]).toMatchObject({ goalsFor: 5, goalsAgainst: 2, outcome: "W", opponent: "A" });
+  });
+});

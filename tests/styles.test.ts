@@ -43,6 +43,20 @@ describe("contrast (WCAG AA: 4.5 for text)", () => {
       });
     }
   }
+  // Line charts: eight colours, each also has its own marker shape. A line or marker is a graphic, so 3:1 against the card.
+  for (const [name, theme] of [["light", light], ["dark", dark]] as const) {
+    for (let i = 1; i <= 8; i++) {
+      it(`${name}: line colour ${i} on the card (3:1)`, () => {
+        expect(theme[`line-${i}`], `missing token line-${i}`).toBeTruthy();
+        expect(ratio(theme[`line-${i}`], theme["card"])).toBeGreaterThanOrEqual(3);
+      });
+    }
+    it(`${name}: the eight line colours are all different, and the grid is visible but quiet`, () => {
+      expect(new Set(Array.from({ length: 8 }, (_, k) => theme[`line-${k + 1}`])).size).toBe(8);
+      expect(ratio(theme["grid"], theme["card"])).toBeGreaterThan(1.1);
+      expect(ratio(theme["grid"], theme["card"])).toBeLessThan(3);
+    });
+  }
   it("the three series colours are clearly different from each other in both themes", () => {
     for (const theme of [light, dark]) {
       expect(ratio(theme["bar"], theme["bar-2"])).toBeGreaterThan(1.05);

@@ -3,10 +3,15 @@
 // draws them. A series with no data is dropped, so the page never draws an empty chart.
 import { MEMBERS_SINGLE, type ClubProfile, type MemberRow, type MetricComparison } from "./club-compare";
 import type { Bi } from "./i18n";
-import { formString, trendMembers, type RecentMatches } from "./recent-matches";
+import { MIN_TREND_APPEARANCES, formString, type RecentMatches } from "./recent-matches";
 
-/** Most members shown in one member chart (a longer list is unreadable on a phone). */
-export const CHART_MEMBERS_MAX = 12;
+/**
+ * Most members drawn in ONE chart. Every member with at least one game is shown (thin ones lighter); this only stops a
+ * freak squad from making an unusable chart. A real Pro Clubs squad is well under it.
+ */
+export const CHART_MEMBERS_MAX = 40;
+/** Lines drawn at full strength by default; the rest start hidden and can be switched on from the legend. */
+export const LINES_ON_BY_DEFAULT = 6;
 
 export interface ChartBar {
   label: string;
@@ -22,10 +27,21 @@ export interface ChartSeries {
   bars: ChartBar[];
 }
 
+/** How the page draws a chart: vertical columns (one column group per member or club) or lines across the matches. */
+export type ChartKind = "columns" | "lines";
+
 export interface ChartSpec {
   key: string;
+  /** Default "columns". "lines" charts are drawn over the categories in `categories`, oldest first. */
+  kind: ChartKind;
   title: Bi;
-  /** One or more series drawn as groups of bars. */
+  /** Lines only: the x categories in order (match #1 is the oldest). */
+  categories?: string[];
+  /** Labels whose values rest on too few games to be reliable; the page draws these lighter. */
+  thin?: string[];
+  /** Whole numbers only (goals, assists): the axis never shows a fractional tick. */
+  integer?: boolean;
+  /** One or more series drawn as groups of columns, or as lines. */
   series: ChartSeries[];
   /** Upper end of the scale; chosen so bars in a group compare honestly (percentages use 100). */
   max: number;
@@ -45,45 +61,74 @@ function niceMax(values: number[]): number {
 
 const label = (m: MemberRow) => m.name;
 
-/** The members with the most games first (the same order the table uses), capped for readability. */
+/** Members with at least one game, most games first (the table's order). Nobody with games is hidden; only an absurd squad is cut. */
 function topMembers(club: ClubProfile): MemberRow[] {
-  return club.members.slice(0, Math.min(CHART_MEMBERS_MAX, MEMBERS_SINGLE));
+  return club.members.filter((m) => (m.games ?? 0) > 0).slice(0, CHART_MEMBERS_MAX);
 }
 
-/** One club: goals and assists per member, and pass / shot / tackle success percentages. */
+/** Labels of members with too few games for their numbers to be reliable (drawn lighter, never hidden). */
+const thinLabels = (members: readonly MemberRow[]): string[] => members.filter((m) => !m.ranked).map(label);
+
+/** One club: a vertical column chart per statistic, every member in it. */
 export function singleClubCharts(club: ClubProfile): ChartSpec[] {
   const members = topMembers(club);
+  const thin = thinLabels(members);
   const out: ChartSpec[] = [];
 
-  const goals = members.filter((m) => finite(m.goals)).map((m) => ({ label: label(m), value: m.goals as number, note: finite(m.games) ? `${m.games}` : undefined }));
-  const assists = members.filter((m) => finite(m.assists)).map((m) => ({ label: label(m), value: m.assists as number, note: finite(m.games) ? `${m.games}` : undefined }));
-  if (goals.some((b) => b.value > 0) || assists.some((b) => b.value > 0)) {
-    const series: ChartSeries[] = [];
-    if (goals.length > 0) series.push({ name: { en: "Goals", zh: "入球" }, unit: "", bars: goals });
-    if (assists.length > 0) series.push({ name: { en: "Assists", zh: "助攻" }, unit: "", bars: assists });
+  const col = (name: Bi, pick: (m: MemberRow) => number | null, unit = "", withGames = false): ChartSeries => ({
+    name,
+    unit,
+    bars: members.filter((m) => finite(pick(m))).map((m) => ({ label: label(m), value: pick(m) as number, note: withGames && finite(m.games) ? `${m.games}` : undefined })),
+  });
+  const thinNote: Bi = { en: "Lighter columns: fewer than 5 games, so the number is not reliable.", zh: "較淡嘅長條:少於 5 場,數字未必可靠。" };
+  const anyThin = thin.length > 0 ? thinNote : undefined;
+
+  // Season totals: goals and assists side by side per member.
+  const goals = col({ en: "Goals", zh: "入球" }, (m) => m.goals, "", true);
+  const assists = col({ en: "Assists", zh: "助攻" }, (m) => m.assists, "", true);
+  if (goals.bars.some((b) => b.value > 0) || assists.bars.some((b) => b.value > 0)) {
     out.push({
       key: "members-goals-assists",
-      title: { en: "Goals and assists per member", zh: "每位球員入球同助攻" },
-      series,
-      max: niceMax([...goals, ...assists].map((b) => b.value)),
+      kind: "columns",
+      integer: true,
+      title: { en: "Goals and assists per member (season)", zh: "每位球員入球同助攻(本季)" },
+      series: [goals, assists].filter((x) => x.bars.length > 0),
+      max: niceMax([...goals.bars, ...assists.bars].map((b) => b.value)),
+      thin,
+      footnote: anyThin,
     });
   }
+  // Per-game rates: these are what compare a busy member with a new one fairly.
+  const gpg = col({ en: "Goals per game", zh: "場均入球" }, (m) => m.goalsPerGame);
+  const apg = col({ en: "Assists per game", zh: "場均助攻" }, (m) => m.assistsPerGame);
+  if (gpg.bars.some((b) => b.value > 0) || apg.bars.some((b) => b.value > 0)) {
+    out.push({
+      key: "members-per-game",
+      kind: "columns",
+      title: { en: "Goals and assists per game (season)", zh: "場均入球同助攻(本季)" },
+      series: [gpg, apg].filter((x) => x.bars.length > 0),
+      max: niceMax([...gpg.bars, ...apg.bars].map((b) => b.value)),
+      thin,
+      footnote: anyThin,
+    });
+  }
+  // Season average match rating, out of 10.
+  const rating = col({ en: "Average rating", zh: "平均評分" }, (m) => m.rating);
+  if (rating.bars.length > 0) {
+    out.push({ key: "members-rating", kind: "columns", title: { en: "Average match rating per member (season)", zh: "每位球員平均賽事評分(本季)" }, series: [rating], max: 10, thin, footnote: anyThin });
+  }
 
-  const pct = (name: Bi, pick: (m: MemberRow) => number | null): ChartSeries => ({
-    name,
-    unit: "%",
-    bars: members.filter((m) => finite(pick(m))).map((m) => ({ label: label(m), value: pick(m) as number })),
-  });
+  const pct = (name: Bi, pick: (m: MemberRow) => number | null): ChartSeries => col(name, pick, "%");
   const rates = [pct({ en: "Pass %", zh: "傳球成功率" }, (m) => m.passPct), pct({ en: "Shot %", zh: "射門成功率" }, (m) => m.shotPct), pct({ en: "Tackle %", zh: "搶截成功率" }, (m) => m.tacklePct)].filter((s) => s.bars.length > 0);
   if (rates.length > 0) {
     out.push({
       key: "members-rates",
-      title: { en: "Pass, shot and tackle success rate per member", zh: "每位球員傳球、射門、搶截成功率" },
+      kind: "columns",
+      title: { en: "Pass, shot and tackle success rate per member (season)", zh: "每位球員傳球、射門、搶截成功率(本季)" },
       series: rates,
       max: 100,
-      footnote: members.some((m) => !m.ranked)
-        ? { en: "Members with fewer than 5 games have unreliable percentages.", zh: "少於 5 場嘅球員,百分比未必可靠。" }
-        : undefined,
+      thin,
+      footnote: anyThin,
     });
   }
   return out;
@@ -106,6 +151,7 @@ export function compareClubsCharts(clubs: readonly ClubProfile[], metrics: reado
   if (winSeries.length > 0) {
     out.push({
       key: "clubs-win-rate",
+      kind: "columns",
       title: { en: "Win rate by club", zh: "各球會勝率" },
       series: winSeries,
       max: 100,
@@ -120,6 +166,7 @@ export function compareClubsCharts(clubs: readonly ClubProfile[], metrics: reado
   if (goalSeries.length > 0) {
     out.push({
       key: "clubs-goals",
+      kind: "columns",
       title: { en: "Goals scored and conceded per game", zh: "場均入球同失球" },
       series: goalSeries,
       max: niceMax([...gf, ...ga].map((b) => b.value)),
@@ -138,6 +185,7 @@ export function recentMatchCharts(clubName: string, recent: RecentMatches | null
   if (!recent || recent.matches.length === 0) return [];
   const n = recent.matches.length;
   const matchLabel = (i: number) => `#${i + 1}`;
+  const categories = recent.matches.map((_, i) => matchLabel(i));
   const out: ChartSpec[] = [];
 
   const scored = recent.matches.map((m, i) => ({ label: matchLabel(i), value: m.goalsFor, note: m.outcome }));
@@ -145,6 +193,9 @@ export function recentMatchCharts(clubName: string, recent: RecentMatches | null
   const peak = Math.max(...scored.map((b) => b.value), ...conceded.map((b) => b.value));
   out.push({
     key: "recent-goals",
+    kind: "lines",
+    integer: true,
+    categories,
     title: { en: `${clubName}: goals in the last ${n} league matches`, zh: `${clubName}:最近 ${n} 場聯賽入球` },
     series: [
       { name: { en: "Scored", zh: "入球" }, unit: "", bars: scored },
@@ -155,34 +206,60 @@ export function recentMatchCharts(clubName: string, recent: RecentMatches | null
   });
 
   if (!withMembers) return out;
-  const members = trendMembers(recent);
+  // EVERY member who played in these matches gets a line (the 6 busiest are on by default, the rest can be switched on
+  // from the legend). A member with fewer than MIN_TREND_APPEARANCES is still drawn, but flagged as a thin sample.
+  const members = recent.members.slice(0, CHART_MEMBERS_MAX);
   if (members.length === 0) return out;
-  // Rating per match for the busiest members. A match the member did not play has NO bar (a gap), not a zero.
-  const series: ChartSeries[] = members.map((m) => ({
-    name: { en: m.name, zh: m.name },
-    unit: "",
-    bars: m.matches.filter((x) => finite(x.rating)).map((x) => ({ label: matchLabel(x.matchNo - 1), value: x.rating as number })),
-  })).filter((s) => s.bars.length > 0);
-  if (series.length > 0) {
+  const thin = members.filter((m) => m.appearances < MIN_TREND_APPEARANCES).map((m) => m.name);
+  const thinNote: Bi | undefined = thin.length > 0 ? { en: "Dotted names: fewer than 3 appearances in these matches, so the line says little.", zh: "有點線嘅名:呢幾場出場少於 3 次,線條參考價值有限。" } : undefined;
+  const lineSeries = (pick: (x: RecentMatches["members"][number]["matches"][number]) => number | null, asInt = false): ChartSeries[] =>
+    members
+      .map((m): ChartSeries => ({
+        name: { en: m.name, zh: m.name },
+        unit: "",
+        // a match the member did not play has NO point, so the line breaks there (a gap, never a zero)
+        bars: m.matches.filter((x) => finite(pick(x))).map((x) => ({ label: matchLabel(x.matchNo - 1), value: asInt ? Math.round(pick(x) as number) : (pick(x) as number) })),
+      }))
+      .filter((x) => x.bars.length > 0);
+
+  const rating = lineSeries((x) => x.rating);
+  if (rating.length > 0) {
     out.push({
       key: "recent-ratings",
-      title: { en: "Match rating of the busiest members", zh: "出場最多嘅球員每場評分" },
-      series,
+      kind: "lines",
+      categories,
+      title: { en: "Match rating per member, last matches", zh: "每位球員最近每場評分" },
+      series: rating,
       max: 10,
-      footnote: { en: "A match with no bar means the member did not play it. Ratings are EA's, out of 10.", zh: "冇長條嘅場次代表該球員冇出場。評分由 EA 提供,滿分 10。" },
+      thin,
+      footnote: thinNote ?? { en: "A break in a line means the member did not play that match. Ratings are EA's, out of 10.", zh: "線斷咗代表該球員冇出嗰場。評分由 EA 提供,滿分 10。" },
     });
   }
-  const contrib: ChartSeries[] = members.map((m) => ({
-    name: { en: m.name, zh: m.name },
-    unit: "",
-    bars: m.matches.filter((x) => finite(x.goals) || finite(x.assists)).map((x) => ({ label: matchLabel(x.matchNo - 1), value: (x.goals ?? 0) + (x.assists ?? 0) })),
-  })).filter((s) => s.bars.some((b) => b.value > 0));
-  if (contrib.length > 0) {
+  const contrib = lineSeries((x) => (finite(x.goals) || finite(x.assists) ? (x.goals ?? 0) + (x.assists ?? 0) : null), true);
+  if (contrib.some((x) => x.bars.some((b) => b.value > 0))) {
     out.push({
       key: "recent-contributions",
-      title: { en: "Goals plus assists per match, busiest members", zh: "出場最多嘅球員每場入球加助攻" },
+      kind: "lines",
+      integer: true,
+      categories,
+      title: { en: "Goals plus assists per match, per member", zh: "每位球員每場入球加助攻" },
       series: contrib,
-      max: niceMax(contrib.flatMap((s) => s.bars.map((b) => b.value))),
+      max: niceMax(contrib.flatMap((x) => x.bars.map((b) => b.value))),
+      thin,
+      footnote: thinNote,
+    });
+  }
+  const pass = lineSeries((x) => x.passPct);
+  if (pass.length > 0) {
+    out.push({
+      key: "recent-pass",
+      kind: "lines",
+      categories,
+      title: { en: "Pass completion per match, per member (%)", zh: "每位球員每場傳球成功率(%)" },
+      series: pass,
+      max: 100,
+      thin,
+      footnote: thinNote,
     });
   }
   return out;

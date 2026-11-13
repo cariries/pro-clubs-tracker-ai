@@ -20,8 +20,33 @@ const three = () => compareClubs([club({ ...STRONG(), id: "1:common-gen5" }), cl
 describe("one club: goals, assists and the three success rates per member", () => {
   const c = one();
   const charts = singleClubCharts(c.clubs[0]);
-  it("draws a goals-and-assists chart and a rates chart", () => {
-    expect(charts.map((x) => x.key)).toEqual(["members-goals-assists", "members-rates"]);
+  it("draws vertical column charts for goals and assists, per-game rates, rating and the three success rates", () => {
+    expect(charts.map((x) => x.key)).toEqual(["members-goals-assists", "members-per-game", "members-rating", "members-rates"]);
+    expect(charts.every((x) => x.kind === "columns")).toBe(true);
+  });
+  it("EVERY member with games is in every chart, not just the busiest", () => {
+    const names = c.clubs[0].members.filter((m) => (m.games ?? 0) > 0).map((m) => m.name);
+    expect(names.length).toBeGreaterThanOrEqual(3);
+    // every column chart that has a value for a member lists that member (here every member has all the stats)
+    for (const ch of charts) expect(new Set(ch.series.flatMap((x) => x.bars.map((b) => b.label)))).toEqual(new Set(names));
+    const goals = charts[0].series.find((s) => s.name.en === "Goals")!;
+    expect(goals.bars.map((b) => b.label)).toEqual(names);
+  });
+  it("a member with under 5 games is drawn but marked thin (lighter), never left out", () => {
+    expect(charts[0].thin).toEqual(["Rookie"]);
+    expect(charts[0].series[0].bars.map((b) => b.label)).toContain("Rookie");
+    expect(charts[0].footnote?.en).toMatch(/fewer than 5 games/);
+    expect(charts[0].footnote && /[\u3400-\u9fff]/.test(charts[0].footnote.zh)).toBe(true);
+  });
+  it("per-game and rating charts carry the table's own values", () => {
+    const m = c.clubs[0].members;
+    const gpg = charts.find((x) => x.key === "members-per-game")!.series.find((s) => s.name.en === "Goals per game")!;
+    for (const b of gpg.bars) expect(b.value).toBe(m.find((x) => x.name === b.label)!.goalsPerGame);
+    expect(charts.find((x) => x.key === "members-rating")!.max).toBe(10);
+  });
+  it("whole-number charts say so (so the axis never shows half a goal)", () => {
+    expect(charts[0].integer).toBe(true);
+    expect(charts.find((x) => x.key === "members-per-game")!.integer).toBeUndefined();
   });
   it("every bar is exactly the member's own number from the table", () => {
     const goals = charts[0].series.find((s) => s.name.en === "Goals")!;
@@ -33,8 +58,9 @@ describe("one club: goals, assists and the three success rates per member", () =
     for (const b of assists.bars) expect(b.value).toBe(c.clubs[0].members.find((x) => x.name === b.label)!.assists);
   });
   it("percentages are EA's values, on a fixed 0 to 100 scale", () => {
-    expect(charts[1].max).toBe(100);
-    for (const s of charts[1].series) {
+    const rates = charts.find((x) => x.key === "members-rates")!;
+    expect(rates.max).toBe(100);
+    for (const s of rates.series) {
       expect(s.unit).toBe("%");
       for (const b of s.bars) {
         const m = c.clubs[0].members.find((x) => x.name === b.label)!;
@@ -47,13 +73,21 @@ describe("one club: goals, assists and the three success rates per member", () =
     const biggest = Math.max(...charts[0].series.flatMap((s) => s.bars.map((b) => b.value)));
     expect(charts[0].max).toBeGreaterThanOrEqual(biggest);
   });
-  it("shows at most CHART_MEMBERS_MAX members, the ones with the most games first", () => {
+  it("a real squad of 30 is drawn in full, most games first; only an absurd squad is cut at CHART_MEMBERS_MAX", () => {
     const squad = Array.from({ length: 30 }, (_, i) => ({ name: `P${String(i).padStart(2, "0")}`, games: 30 - i, goals: i + 1 }));
     const big = compareClubs([club({ ...STRONG(), id: "1:common-gen5", players: squad })]);
-    const ch = singleClubCharts(big.clubs[0]);
-    const labels = ch[0].series[0].bars.map((b) => b.label);
-    expect(labels).toHaveLength(CHART_MEMBERS_MAX);
+    const labels = singleClubCharts(big.clubs[0])[0].series[0].bars.map((b) => b.label);
+    expect(labels).toHaveLength(30);
     expect(labels[0]).toBe("P00");
+    expect(labels[29]).toBe("P29");
+    const huge = Array.from({ length: CHART_MEMBERS_MAX + 10 }, (_, i) => ({ name: `Q${i}`, games: 5, goals: 1 }));
+    const h = compareClubs([club({ ...STRONG(), id: "1:common-gen5", players: huge })]);
+    expect(singleClubCharts(h.clubs[0])[0].series[0].bars).toHaveLength(CHART_MEMBERS_MAX);
+  });
+  it("a member with ZERO games is not drawn (no numbers to show)", () => {
+    const sq = [{ name: "Played", games: 5, goals: 2 }, { name: "Never", games: 0, goals: 0 }];
+    const cmp = compareClubs([club({ ...STRONG(), id: "1:common-gen5", players: sq })]);
+    expect(singleClubCharts(cmp.clubs[0])[0].series[0].bars.map((b) => b.label)).toEqual(["Played"]);
   });
   it("a member with no number for a stat is left out of that series, not drawn as zero", () => {
     const sq = [{ name: "Has", games: 10, goals: 4 }, { name: "None", games: 9, goals: 3 }];
@@ -161,7 +195,7 @@ describe("chartsFor picks the right set for the mode", () => {
   it("one club gets member charts, several get club charts", () => {
     // the stock invented clubs carry league match SCORES but no per-member match lines, so the recent-goals chart
     // appears and the per-member match charts do not
-    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-rates", "recent-goals"]);
+    expect(chartsFor(one()).map((x) => x.key)).toEqual(["members-goals-assists", "members-per-game", "members-rating", "members-rates", "recent-goals"]);
     expect(chartsFor(three()).map((x) => x.key)).toEqual(["clubs-win-rate", "clubs-goals", "recent-goals", "recent-goals", "recent-goals"]);
   });
   it("does not mutate the comparison it reads", () => {
@@ -209,7 +243,7 @@ describe("wording and wiring", () => {
     expect(read("components/ChartView.tsx")).not.toMatch(/dangerouslySetInnerHTML|<svg|innerHTML/);
   });
   it("chart widths come only from computed values", () => {
-    expect(read("components/ChartView.tsx")).toMatch(/barWidthPct\(bar\.value, c\.max\)/);
+    expect(read("components/ChartView.tsx")).toMatch(/columnHeightPct\(bar\.value, c\.max\)/);
   });
 });
 
@@ -257,7 +291,11 @@ describe("recent league matches: club and member charts", () => {
     const charts = recentMatchCharts("Mine", recent, true);
     const rating = charts.find((c) => c.key === "recent-ratings")!;
     expect(rating.max).toBe(10);
-    expect(rating.series.map((s) => s.name.en)).toEqual(["Ace", "Wing"]); // Rookie played once
+    expect(rating.kind).toBe("lines");
+    expect(rating.categories).toEqual(["#1", "#2", "#3", "#4"]);
+    // EVERY member who played gets a line, including Rookie (one appearance), who is flagged as a thin sample
+    expect(rating.series.map((s) => s.name.en)).toEqual(["Ace", "Wing", "Rookie"]);
+    expect(rating.thin).toEqual(["Rookie"]);
     const wing = rating.series.find((s) => s.name.en === "Wing")!;
     expect(wing.bars.map((b) => b.label)).toEqual(["#1", "#3", "#4"]); // sat out #2
     expect(wing.bars.map((b) => b.value)).toEqual([7, 7.5, 7]);
@@ -282,13 +320,15 @@ describe("recent league matches: club and member charts", () => {
   it("no matches loaded (null) or none readable gives no charts, never an empty one", () => {
     expect(recentMatchCharts("Mine", null, true)).toEqual([]);
   });
-  it("a club whose members never played 3 matches gets the goals chart and no member charts", () => {
+  it("a club whose members each played under 3 matches still draws their lines, all flagged thin", () => {
     const few = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: [mk(1, 1, 0, [p("A", 1, 0, 8)]), mk(2, 1, 0, [p("A", 0, 0, 7)])] } } }, ME);
-    expect(recentMatchCharts("Mine", few, true).map((x) => x.key)).toEqual(["recent-goals"]);
+    const keys = recentMatchCharts("Mine", few, true).map((x) => x.key);
+    expect(keys).toEqual(["recent-goals", "recent-ratings", "recent-contributions", "recent-pass"]);
+    expect(recentMatchCharts("Mine", few, true).find((x) => x.key === "recent-ratings")!.thin).toEqual(["A"]);
   });
   it("a member whose goals and assists are all zero gives no contributions chart (an empty chart tells nothing)", () => {
     const flat = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: [1, 2, 3].map((i) => mk(i, 1, 0, [p("Z", 0, 0, 7)])) } } }, ME);
-    expect(recentMatchCharts("Mine", flat, true).map((x) => x.key)).toEqual(["recent-goals", "recent-ratings"]);
+    expect(recentMatchCharts("Mine", flat, true).map((x) => x.key)).toEqual(["recent-goals", "recent-ratings", "recent-pass"]);
   });
   it("chartsFor includes the member match charts for one club and one goals chart PER club for several", () => {
     const profile = { name: "Mine", label: "x", id: "100:nx", recent, members: [] } as unknown as ClubProfile;
@@ -297,6 +337,91 @@ describe("recent league matches: club and member charts", () => {
     const many = chartsFor({ mode: "compare", clubs: [profile, { ...profile, id: "200:nx", name: "Other" }], metrics: [] }).map((x) => x.key);
     expect(many.filter((k) => k === "recent-goals")).toHaveLength(2);
     expect(many).not.toContain("recent-ratings");
+  });
+});
+
+describe("every line chart is fully specified (a missing field draws an empty or wrong chart)", () => {
+  const ME = "100";
+  const mk = (i: number, gf: number, ga: number, players: Array<Record<string, unknown>>) => ({
+    matchId: `m${i}`, timestamp: 1_800_000_000 + i * 3600,
+    clubs: { [ME]: { goals: gf, goalsAgainst: ga, name: "Mine" }, "200": { goals: ga, goalsAgainst: gf, name: "Opp" } },
+    players: { [ME]: players, "200": [] },
+  });
+  const p = (name: string, goals: number, assists: number, rating: number) => ({ name, goals, assists, rating, passesMade: 8, passAttempts: 10 });
+  const rows = [1, 2, 3, 4].map((i) => mk(i, 1, 0, [p("Ace", i % 2, 1, 7), p("Wing", 0, 1, 6.5)]));
+  const recent = readRecentMatches({ parts: { leagueMatches: { status: "ok", data: rows } } }, ME);
+  const charts = recentMatchCharts("Mine", recent, true);
+  it("all four line charts exist", () => {
+    expect(charts.map((c) => c.key)).toEqual(["recent-goals", "recent-ratings", "recent-contributions", "recent-pass"]);
+    expect(charts.every((c) => c.kind === "lines")).toBe(true);
+  });
+  it("each one lists the match categories in order, #1 oldest, and every point's label is one of them", () => {
+    for (const c of charts) {
+      expect(c.categories, c.key).toEqual(["#1", "#2", "#3", "#4"]);
+      for (const s of c.series) for (const b of s.bars) expect(c.categories, `${c.key} ${b.label}`).toContain(b.label);
+    }
+  });
+  it("whole-number charts (goals, goals plus assists) are flagged so the axis never shows half a goal; rating and pass are not", () => {
+    const flag = Object.fromEntries(charts.map((c) => [c.key, c.integer === true]));
+    expect(flag).toEqual({ "recent-goals": true, "recent-ratings": false, "recent-contributions": true, "recent-pass": false });
+  });
+  it("the scales: goals fit the biggest bar, rating is out of 10, pass completion is out of 100", () => {
+    const by = Object.fromEntries(charts.map((c) => [c.key, c.max]));
+    expect(by["recent-ratings"]).toBe(10);
+    expect(by["recent-pass"]).toBe(100);
+    expect(by["recent-goals"]).toBeGreaterThanOrEqual(1);
+    expect(by["recent-contributions"]).toBeGreaterThanOrEqual(2); // Ace has 1 goal + 1 assist in some matches
+  });
+  it("pass completion points are made / attempted, as a percentage", () => {
+    const pass = charts.find((c) => c.key === "recent-pass")!;
+    for (const s of pass.series) for (const b of s.bars) expect(b.value).toBe(80);
+  });
+  it("goals plus assists are whole numbers", () => {
+    const c = charts.find((x) => x.key === "recent-contributions")!;
+    for (const s of c.series) for (const b of s.bars) expect(Number.isInteger(b.value)).toBe(true);
+    expect(c.series.find((s) => s.name.en === "Ace")!.bars.map((b) => b.value)).toEqual([2, 1, 2, 1]); // goals i%2 (1,0,1,0) plus 1 assist each
+  });
+  it("the first six lines are on by default, and the rest wait to be switched on", async () => {
+    const { LINES_ON_BY_DEFAULT } = await import("@/lib/charts");
+    expect(LINES_ON_BY_DEFAULT).toBe(6);
+  });
+});
+
+describe("the page draws what the code says (read from source)", () => {
+  const read = (f: string) => readFileSync(fileURLToPath(new URL(`../${f}`, import.meta.url)), "utf8");
+  const view = read("components/ChartView.tsx");
+  const line = read("components/LineChart.tsx");
+  it("a lines chart goes to the SVG line component and a columns chart to the column view", () => {
+    expect(view).toMatch(/c\.kind === "lines" \? \(\s*<LineChart spec=\{c\}/);
+    expect(view).toMatch(/<Columns c=\{c\}/);
+  });
+  it("the line chart is drawn from the geometry module, never from raw values, and never from model output", () => {
+    expect(line).toMatch(/lineGeometry\(categories, spec\.series, 0, spec\.max, spec\.integer === true\)/);
+    expect(line).not.toMatch(/dangerouslySetInnerHTML|innerHTML/);
+    expect(line).not.toMatch(/from "@\/lib\/llm/);
+  });
+  it("every line has a marker shape as well as a colour (colour is not the only signal)", () => {
+    expect(line).toMatch(/shapeOf\(i\)/);
+    expect(line).toMatch(/markerPoints\(/);
+  });
+  it("the legend toggles lines, starts with the busiest on, and offers show-all and busiest-only", () => {
+    expect(line).toMatch(/i < LINES_ON_BY_DEFAULT/);
+    expect(line).toMatch(/aria-pressed=\{on\[i\]\}/);
+    expect(line).toMatch(/setOn\(spec\.series\.map\(\(\) => true\)\)/);
+  });
+  it("the numbers are also given as a table (for screen readers, and for exact values)", () => {
+    expect(line).toMatch(/<details className="lx-table">/);
+    expect(line).toMatch(/<table>/);
+  });
+  it("a thin sample is shown differently: dotted line and italic legend name", () => {
+    expect(line).toMatch(/isThin \? "thin"/);
+    expect(read("app/globals.css")).toMatch(/\.linechart \.thin \.ln \{ stroke-dasharray/);
+    expect(view).toMatch(/cgroup \$\{thin\.has\(label\) \? "thin" : ""\}/);
+    expect(read("app/globals.css")).toMatch(/\.cols \.cgroup\.thin \.cfill \{ opacity/);
+  });
+  it("column charts scroll sideways on a phone instead of squashing every member into the width", () => {
+    expect(read("app/globals.css")).toMatch(/\.cols \{[^}]*overflow-x: auto/);
+    expect(read("app/globals.css")).toMatch(/\.lines-wrap \{ overflow-x: auto/);
   });
 });
 

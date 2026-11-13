@@ -196,3 +196,17 @@ describe("header layout (read from source: pages are not rendered in tests)", ()
     expect(read("app/profile/page.tsx")).not.toMatch(/signOut|PROFILE\.signOut/);
   });
 });
+
+import { LINES } from "@/lib/ui-text";
+describe("line chart wording", () => {
+  it("has both languages, English without Chinese, and the placeholder matches", () => {
+    for (const [k, v] of Object.entries(LINES)) {
+      expect(v.en.length, k).toBeGreaterThan(0);
+      expect(v.zh.length, k).toBeGreaterThan(0);
+      expect(/[\u3400-\u9fff]/.test(v.en), k).toBe(false);
+    }
+    expect(LINES.hiddenCount.en).toContain("{n}");
+    expect(LINES.hiddenCount.zh).toContain("{n}");
+    expect(/[\u3400-\u9fff]/.test(LINES.tapHint.zh)).toBe(true);
+  });
+});

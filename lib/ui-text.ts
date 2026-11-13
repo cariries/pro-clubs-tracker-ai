@@ -183,3 +183,14 @@ export const CHARTS = {
   D: { en: "draw", zh: "和" },
   L: { en: "loss", zh: "負" },
 } satisfies Record<string, Bi>;
+
+export const LINES = {
+  tapHint: { en: "Tap a name to show or hide its line.", zh: "撳個名就可以顯示或隱藏條線。" },
+  showAll: { en: "Show all", zh: "全部顯示" },
+  busiest: { en: "Busiest only", zh: "只睇出場最多" },
+  tableTitle: { en: "Show the numbers as a table", zh: "以表格顯示數字" },
+  match: { en: "Match", zh: "場次" },
+  noPlay: { en: "–", zh: "–" },
+  aria: { en: "Line chart", zh: "折線圖" },
+  hiddenCount: { en: "{n} more hidden", zh: "另外 {n} 條已隱藏" },
+} satisfies Record<string, Bi>;
