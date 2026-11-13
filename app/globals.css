@@ -5,7 +5,7 @@
   --bg: #f4f6fa; --card: #ffffff; --text: #14181f; --muted: #5b6575; --border: #dde2ea;
   --accent: #1a5fd0; --accent-hover: #124aa6; --accent-text: #ffffff; --accent-soft: #e8f0fe;
   --warn: #8a5a00; --warn-bg: #fff4d6; --err: #b00020; --err-bg: #fdecef; --ok: #1b6e2d;
-  --bar: #2f6fdb; --bar-neg: #b00020;
+  --bar: #2f6fdb; --bar-2: #c2570c; --bar-3: #0f766e; --bar-neg: #b00020;
   --radius: 12px; --shadow: 0 1px 2px rgba(16, 24, 40, .06);
   color-scheme: light dark;
 }
@@ -14,7 +14,7 @@
     --bg: #0e1116; --card: #171c25; --text: #e8ebf0; --muted: #9aa4b5; --border: #2a3140;
     --accent: #5aa7ff; --accent-hover: #7bbaff; --accent-text: #0b1220; --accent-soft: #16263d;
     --warn: #e3b341; --warn-bg: #33290e; --err: #ff8a80; --err-bg: #3a1b1f; --ok: #6fd18a;
-    --bar: #5aa7ff; --bar-neg: #ff8a80;
+    --bar: #5aa7ff; --bar-2: #f0a35e; --bar-3: #4fd1c5; --bar-neg: #ff8a80;
     --shadow: none;
   }
 }
@@ -122,6 +122,22 @@ tbody tr:hover { background: var(--accent-soft); }
 .bars .label { width: 150px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bars .bar { display: inline-block; height: 12px; border-radius: 6px; background: var(--bar); min-width: 2px; }
 .bars .bar.neg { background: var(--bar-neg); }
+
+/* charts drawn by the page */
+.charts { margin: 18px 0; }
+.chart { margin: 14px 0; padding: 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+.chart .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0; margin: 0 0 8px; font-size: .85rem; color: var(--muted); }
+.chart .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; }
+.chart .group { margin: 10px 0 14px; }
+.chart .glabel { font-weight: 600; overflow-wrap: anywhere; margin-bottom: 2px; }
+.chart .brow { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 8px; margin: 2px 0; font-size: .9rem; }
+.chart .bname { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart .track { background: var(--accent-soft); border-radius: 6px; height: 12px; overflow: hidden; display: block; }
+.chart .fill { display: block; height: 100%; border-radius: 6px; }
+.chart .bval { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.s0 { background: var(--bar); } .s1 { background: var(--bar-2); } .s2 { background: var(--bar-3); }
+@media (max-width: 600px) { .chart .brow { grid-template-columns: 70px 1fr auto; } }
 
 /* Ask AI conversation */
 .thread { margin: 16px 0; }

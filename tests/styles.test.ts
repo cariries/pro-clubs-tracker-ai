@@ -33,6 +33,23 @@ describe("contrast (WCAG AA: 4.5 for text)", () => {
     ["warn", "warn-bg", 4.5], ["text", "warn-bg", 4.5], ["err", "card", 4.5], ["err", "bg", 4.5], ["text", "err-bg", 4.5], ["text", "accent-soft", 4.5],
     ["warn", "card", 4.5], ["accent", "accent-soft", 4.5],
   ];
+  // Chart bars are graphics, not text: WCAG asks 3:1 against what they sit on. They sit on the soft track inside a card.
+  const bars: Array<[string, string, number]> = [["bar", "accent-soft", 3], ["bar-2", "accent-soft", 3], ["bar-3", "accent-soft", 3], ["bar", "card", 3], ["bar-2", "card", 3], ["bar-3", "card", 3]];
+  for (const [name, theme] of [["light", light], ["dark", dark]] as const) {
+    for (const [fg, bg, min] of bars) {
+      it(`${name}: chart colour ${fg} on ${bg} (3:1)`, () => {
+        expect(theme[fg], `missing token ${fg}`).toBeTruthy();
+        expect(ratio(theme[fg], theme[bg])).toBeGreaterThanOrEqual(min);
+      });
+    }
+  }
+  it("the three series colours are clearly different from each other in both themes", () => {
+    for (const theme of [light, dark]) {
+      expect(ratio(theme["bar"], theme["bar-2"])).toBeGreaterThan(1.05);
+      expect(ratio(theme["bar"], theme["bar-3"])).toBeGreaterThan(1.05);
+      expect(new Set([theme["bar"], theme["bar-2"], theme["bar-3"]]).size).toBe(3);
+    }
+  });
   for (const [name, theme] of [["light", light], ["dark", dark]] as const) {
     for (const [fg, bg, min] of pairs) {
       it(`${name}: ${fg} on ${bg}`, () => {

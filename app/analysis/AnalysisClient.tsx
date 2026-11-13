@@ -6,6 +6,8 @@ import { BOARD_LABEL, METRIC_LABEL, describeWarning, type ClubComparison, type C
 import { askPath, removeAskClub, type AskClub } from "@/lib/ask-clubs";
 import { PUBLIC_PLATFORMS } from "@/lib/public-clubs";
 import { fill, pick, type Bi, type Lang } from "@/lib/i18n";
+import ChartView from "@/components/ChartView";
+import { chartsFor } from "@/lib/charts";
 import { ASK, MEMBER_COLS, THREAD } from "@/lib/ui-text";
 import { historyOf, parseStoredThread, serializeThread, threadFull, threadKey, turnsLeft, type ThreadTurn } from "@/lib/ask-thread";
 
@@ -420,6 +422,7 @@ function ComputedNumbers({ c, lang }: { c: Result["comparison"]; lang: Lang }) {
       <h3>{pick(single ? ASK.computedOne : ASK.computedMany, lang)}</h3>
       {single ? <SingleClub club={c.clubs[0]} lang={lang} /> : <ClubTable c={c} lang={lang} />}
       {!single && <BoardTables c={c} nameOf={nameOf} lang={lang} />}
+      <ChartView charts={chartsFor(c)} lang={lang} />
       <p>
         <small>{pick(ASK.noCrossing, lang)}</small>
       </p>

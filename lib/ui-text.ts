@@ -174,3 +174,9 @@ export const THREAD = {
   turnLimitError: { en: "This conversation is full. Start a new conversation.", zh: "呢個對話已滿,請開新對話。" },
   summaryLabel: { en: "Summary of the answer", zh: "回答摘要" },
 } satisfies Record<string, Bi>;
+
+export const CHARTS = {
+  title: { en: "Charts (drawn by the app from the numbers above)", zh: "圖表(由程式根據上面嘅數字繪製)" },
+  note: { en: "These charts use no AI. Every bar is a number computed from EA's data.", zh: "呢啲圖表唔經 AI,每條長條都係根據 EA 資料計算出嚟嘅數字。" },
+  games: { en: "{n} games", zh: "{n} 場" },
+} satisfies Record<string, Bi>;
