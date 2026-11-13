@@ -1,0 +1,24 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): 3 of 9 entries kept, clubInfo.customKit removed. Query was clubName=test.",
+    "clubId": "914493", "wins": "3", "losses": "0", "ties": "2", "gamesPlayed": "5", "gamesPlayedPlayoff": "0",
+    "goals": "23", "goalsAgainst": "11", "cleanSheets": "1", "points": "8", "reputationtier": "0",
+    "promotions": "1", "relegations": "0", "bestDivision": "5",
+    "clubInfo": { "name": "Test 1 team", "clubId": 914493, "regionId": 1112101682, "teamId": 1877 },
+    "platform": "common-gen5", "clubName": "Test 1 team", "currentDivision": "5"
+  },
+  {
+    "clubId": "991650", "wins": "8", "losses": "28", "ties": "2", "gamesPlayed": "38", "gamesPlayedPlayoff": "0",
+    "goals": "54", "goalsAgainst": "110", "cleanSheets": "6", "points": "17", "reputationtier": "0",
+    "promotions": "2", "relegations": "2", "bestDivision": "5",
+    "clubInfo": { "name": "test 11", "clubId": 991650, "regionId": 1112101682, "teamId": 243 },
+    "platform": "common-gen5", "clubName": "test 11", "currentDivision": "6"
+  },
+  {
+    "clubId": "492098", "wins": "41", "losses": "26", "ties": "9", "gamesPlayed": "76", "gamesPlayedPlayoff": "13",
+    "goals": "189", "goalsAgainst": "137", "cleanSheets": "18", "points": "55", "reputationtier": "1",
+    "promotions": "3", "relegations": "0", "bestDivision": "3",
+    "clubInfo": { "name": "test club ghost", "clubId": 492098, "regionId": 5457237, "teamId": 1352 },
+    "platform": "common-gen5", "clubName": "test club ghost", "currentDivision": "6"
+  }
+]

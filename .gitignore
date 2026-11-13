@@ -1,0 +1,10 @@
+node_modules
+.next
+.vercel
+.env*
+next-env.d.ts
+*.tsbuildinfo
+
+# Third-party packages kept for reading only, never built or committed
+reference/
+!.env.example

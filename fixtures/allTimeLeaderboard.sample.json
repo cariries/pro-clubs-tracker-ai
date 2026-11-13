@@ -1,0 +1,19 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): first 2 entries only, clubInfo.customKit removed (the kit stadName of rank 2 was Arabic text).",
+    "rank": 1, "skillRating": "2692", "reputationlevel": "5", "bestDivision": "1",
+    "wins": "120", "ties": "0", "losses": "0", "gamesPlayed": "120", "goals": "360", "goalsAgainst": "0",
+    "cleanSheets": "118", "goalsPerGame": "3.00", "goalsAgainstPerGame": "0.00", "gamesPlayedPlayoff": "0",
+    "reputationtier": "1", "bestFinishGroup": "0", "clubName": "Seirin90", "clubId": "1980853", "currentDivision": "1",
+    "clubInfo": { "name": "Seirin90", "clubId": 1980853, "regionId": 1128353074, "teamId": 21 },
+    "platform": "common-gen5"
+  },
+  {
+    "rank": 2, "skillRating": "2641", "reputationlevel": "7", "bestDivision": "1",
+    "wins": "183", "ties": "23", "losses": "59", "gamesPlayed": "265", "goals": "978", "goalsAgainst": "272",
+    "cleanSheets": "125", "goalsPerGame": "3.69", "goalsAgainstPerGame": "1.03", "gamesPlayedPlayoff": "25",
+    "reputationtier": "2", "bestFinishGroup": "2", "clubName": "Tik iw10j", "clubId": "29395", "currentDivision": "1",
+    "clubInfo": { "name": "Tik iw10j", "clubId": 29395, "regionId": 1296384306, "teamId": 607 },
+    "platform": "common-gen5"
+  }
+]

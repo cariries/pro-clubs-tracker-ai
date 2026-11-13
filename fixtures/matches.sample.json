@@ -1,0 +1,51 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): match_event_aggregate_*, customKit, and one of three players per club removed. Real gamer tags.",
+    "matchId": "49456786580288",
+    "timestamp": 1790789977,
+    "timeAgo": { "number": 1, "unit": "months" },
+    "clubs": {
+      "914493": {
+        "date": "1790789976", "gameNumber": "0", "goals": "3", "goalsAgainst": "3", "losses": "0",
+        "matchType": "1", "result": "4", "score": "3", "season_id": "0", "TEAM": "1877", "ties": "1",
+        "winnerByDnf": "0", "wins": "0",
+        "details": { "name": "Test 1 team", "clubId": 914493, "regionId": 1112101682, "teamId": 1877 }
+      }
+    },
+    "players": {
+      "838445": {
+        "297247153": {
+          "assists": "0", "cleansheetsany": "0", "cleansheetsdef": "0", "cleansheetsgk": "0",
+          "gameTime": "5502", "goals": "2", "goalsconceded": "3", "mom": "0",
+          "passattempts": "13", "passesmade": "11", "pos": "forward", "rating": "7.10", "redcards": "1",
+          "saves": "0", "secondsPlayed": "5502", "shots": "3", "tackleattempts": "6", "tacklesmade": "0",
+          "playername": "Cyril_the_cat"
+        },
+        "1006635817838": {
+          "assists": "0", "cleansheetsany": "0", "cleansheetsdef": "0", "cleansheetsgk": "0",
+          "gameTime": "2789", "goals": "0", "goalsconceded": "0", "mom": "0",
+          "passattempts": "0", "passesmade": "0", "pos": "midfielder", "rating": "7.30", "redcards": "0",
+          "saves": "0", "secondsPlayed": "2789", "shots": "0", "tackleattempts": "0", "tacklesmade": "0",
+          "playername": "AJH2474041"
+        }
+      },
+      "914493": {
+        "1655340796": {
+          "assists": "2", "cleansheetsany": "0", "cleansheetsdef": "0", "cleansheetsgk": "0",
+          "gameTime": "5502", "goals": "1", "goalsconceded": "3", "mom": "1",
+          "passattempts": "27", "passesmade": "25", "pos": "forward", "rating": "8.60", "redcards": "0",
+          "saves": "0", "secondsPlayed": "5502", "shots": "2", "tackleattempts": "1", "tacklesmade": "0",
+          "playername": "T3NK_Blackpearl"
+        },
+        "1004146980633": {
+          "assists": "1", "cleansheetsany": "0", "cleansheetsdef": "0", "cleansheetsgk": "0",
+          "gameTime": "5502", "goals": "1", "goalsconceded": "3", "mom": "0",
+          "passattempts": "37", "passesmade": "21", "pos": "midfielder", "rating": "8.50", "redcards": "0",
+          "saves": "0", "secondsPlayed": "5502", "shots": "2", "tackleattempts": "5", "tacklesmade": "1",
+          "playername": "xNqFA-z"
+        }
+      }
+    },
+    "aggregate": { "914493": { "goals": 3, "rating": 24.8 } }
+  }
+]

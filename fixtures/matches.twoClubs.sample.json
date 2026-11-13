@@ -1,0 +1,38 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): leagueMatch with maxResultCount=2 returned 1 match (same matchId as matches.sample.json). BOTH clubs are listed under `clubs` here. match_event_aggregate_*, customKit and `aggregate` removed; one player per club kept.",
+    "matchId": "49456786580288",
+    "timestamp": 1790789977,
+    "timeAgo": { "number": 1, "unit": "months" },
+    "clubs": {
+      "838445": {
+        "date": "1790789976", "gameNumber": "0", "goals": "3", "goalsAgainst": "3", "losses": "0",
+        "matchType": "1", "result": "4", "score": "3", "season_id": "0", "TEAM": "99160626", "ties": "1",
+        "winnerByDnf": "0", "wins": "0",
+        "details": { "name": "B1NHEAD FC", "clubId": 838445, "regionId": 1112101682, "teamId": 11 }
+      },
+      "914493": {
+        "date": "1790789976", "gameNumber": "0", "goals": "3", "goalsAgainst": "3", "losses": "0",
+        "matchType": "1", "result": "4", "score": "3", "season_id": "0", "TEAM": "1877", "ties": "1",
+        "winnerByDnf": "0", "wins": "0",
+        "details": { "name": "Test 1 team", "clubId": 914493, "regionId": 1112101682, "teamId": 1877 }
+      }
+    },
+    "players": {
+      "838445": {
+        "297247153": {
+          "assists": "0", "goals": "2", "mom": "0", "namespace": "1", "passattempts": "13", "passesmade": "11",
+          "pos": "forward", "rating": "7.10", "redcards": "1", "saves": "0", "secondsPlayed": "5502",
+          "shots": "3", "tackleattempts": "6", "tacklesmade": "0", "playername": "Cyril_the_cat"
+        }
+      },
+      "914493": {
+        "1655340796": {
+          "assists": "2", "goals": "1", "mom": "1", "namespace": "1", "passattempts": "27", "passesmade": "25",
+          "pos": "forward", "rating": "8.60", "redcards": "0", "saves": "0", "secondsPlayed": "5502",
+          "shots": "2", "tackleattempts": "1", "tacklesmade": "0", "playername": "T3NK_Blackpearl"
+        }
+      }
+    }
+  }
+]

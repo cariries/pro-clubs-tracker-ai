@@ -1,0 +1,24 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): 3 of 6 entries kept, clubInfo.customKit removed. Query was clubName=test. Same shape as search.sample.json.",
+    "clubId": "1899680", "wins": "4", "losses": "3", "ties": "1", "gamesPlayed": "8", "gamesPlayedPlayoff": "0",
+    "goals": "43", "goalsAgainst": "27", "cleanSheets": "1", "points": "10", "reputationtier": "0",
+    "promotions": "1", "relegations": "0", "bestDivision": "5",
+    "clubInfo": { "name": "Test 12345", "clubId": 1899680, "regionId": 4539733, "teamId": 38 },
+    "platform": "common-gen5", "clubName": "Test 12345", "currentDivision": "5"
+  },
+  {
+    "clubId": "755973", "wins": "0", "losses": "2", "ties": "1", "gamesPlayed": "3", "gamesPlayedPlayoff": "0",
+    "goals": "1", "goalsAgainst": "13", "cleanSheets": "0", "points": "1", "reputationtier": "0",
+    "promotions": "0", "relegations": "0", "bestDivision": "6",
+    "clubInfo": { "name": "Test ballcancer", "clubId": 755973, "regionId": 4543827, "teamId": 241 },
+    "platform": "common-gen5", "clubName": "Test ballcancer", "currentDivision": "6"
+  },
+  {
+    "clubId": "492098", "wins": "0", "losses": "1", "ties": "0", "gamesPlayed": "1", "gamesPlayedPlayoff": "0",
+    "goals": "1", "goalsAgainst": "5", "cleanSheets": "0", "points": "0", "reputationtier": "1",
+    "promotions": "0", "relegations": "0", "bestDivision": "6",
+    "clubInfo": { "name": "test club ghost", "clubId": 492098, "regionId": 5457237, "teamId": 1352 },
+    "platform": "common-gen5", "clubName": "test club ghost", "currentDivision": "6"
+  }
+]

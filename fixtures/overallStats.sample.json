@@ -1,0 +1,15 @@
+[
+  {
+    "clubId": "914493", "bestDivision": null, "bestFinishGroup": null,
+    "finishesInDivision1Group1": "0", "finishesInDivision2Group1": "0", "finishesInDivision3Group1": "0",
+    "finishesInDivision4Group1": "0", "finishesInDivision5Group1": "0", "finishesInDivision6Group1": "0",
+    "gamesPlayed": "5", "gamesPlayedPlayoff": "0", "goals": "23", "goalsAgainst": "11",
+    "promotions": "1", "relegations": "0", "losses": "0", "ties": "2", "wins": "3",
+    "lastMatch0": "3", "lastMatch1": "1", "lastMatch2": "1", "lastMatch3": "3", "lastMatch4": "1",
+    "lastMatch5": "-1", "lastMatch6": "-1", "lastMatch7": "-1", "lastMatch8": "-1", "lastMatch9": "-1",
+    "lastOpponent0": "838445", "lastOpponent1": "859809", "lastOpponent2": "1092013",
+    "lastOpponent3": "622035", "lastOpponent4": "796673", "lastOpponent5": "-1", "lastOpponent6": "-1",
+    "lastOpponent7": "-1", "lastOpponent8": "-1", "lastOpponent9": "-1",
+    "wstreak": "0", "unbeatenstreak": "5", "skillRating": "1574", "reputationtier": "0", "leagueAppearances": "5"
+  }
+]

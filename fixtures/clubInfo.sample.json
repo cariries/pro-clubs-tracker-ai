@@ -1,0 +1,34 @@
+{
+  "914493": {
+    "name": "Test 1 team",
+    "clubId": 914493,
+    "regionId": 1112101682,
+    "teamId": 1877,
+    "customKit": {
+      "stadName": "Rang 1-stadion",
+      "kitId": "15376384",
+      "seasonalTeamId": "131397",
+      "seasonalKitId": "1076404224",
+      "selectedKitType": "0",
+      "customKitId": "7509",
+      "kitColor1": "15921906",
+      "kitColor2": "5775459",
+      "kitColor3": "5775459",
+      "kitColor4": "5775459",
+      "customAwayKitId": "7509",
+      "kitAColor1": "5775459",
+      "kitAColor2": "15921906",
+      "kitAColor3": "15921906",
+      "kitAColor4": "15921906",
+      "customThirdKitId": "7511",
+      "kitThrdColor1": "12706617",
+      "kitThrdColor2": "33627",
+      "kitThrdColor3": "396864",
+      "kitThrdColor4": "5775459",
+      "dCustomKit": "0",
+      "customKeeperKitId": "5005",
+      "crestColor": "0",
+      "crestAssetId": "99160616"
+    }
+  }
+}

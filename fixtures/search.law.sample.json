@@ -1,0 +1,27 @@
+[
+  {
+    "clubId": "621365",
+    "wins": "1",
+    "losses": "4",
+    "ties": "2",
+    "gamesPlayed": "7",
+    "gamesPlayedPlayoff": "0",
+    "goals": "6",
+    "goalsAgainst": "18",
+    "cleanSheets": "1",
+    "points": "5",
+    "reputationtier": "0",
+    "promotions": "0",
+    "relegations": "0",
+    "bestDivision": "6",
+    "clubInfo": {
+      "name": "Law and Order1",
+      "clubId": 621365,
+      "regionId": 1397052722,
+      "teamId": 243
+    },
+    "platform": "common-gen5",
+    "clubName": "Law and Order1",
+    "currentDivision": "6"
+  }
+]

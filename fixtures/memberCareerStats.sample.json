@@ -1,0 +1,8 @@
+{
+  "members": [
+    { "name": "rubenvh2003", "proPos": "25", "gamesPlayed": "1", "goals": "1", "assists": "0", "manOfTheMatch": "0", "ratingAve": "7.7", "prevGoals": "1", "favoritePosition": "forward" },
+    { "name": "T3NK_Blackpearl", "proPos": "25", "gamesPlayed": "23", "goals": "47", "assists": "23", "manOfTheMatch": "13", "ratingAve": "8.8", "prevGoals": "1", "favoritePosition": "forward" },
+    { "name": "Kale_Karel10", "proPos": "14", "gamesPlayed": "20", "goals": "11", "assists": "22", "manOfTheMatch": "1", "ratingAve": "8.0", "prevGoals": "0", "favoritePosition": "midfielder" }
+  ],
+  "positionCount": { "midfielder": 1, "goalkeeper": 0, "forward": 2, "defender": 0 }
+}

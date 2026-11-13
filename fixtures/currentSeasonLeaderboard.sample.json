@@ -1,0 +1,26 @@
+[
+  {
+    "_note": "Trimmed from a real EA sample (2026-11-11): only rank 1 pasted (docs say up to 100 entries), clubInfo.customKit removed.",
+    "rank": 1,
+    "skillRating": "889",
+    "bestDivision": "3",
+    "wins": "1324",
+    "ties": "4",
+    "losses": "1376",
+    "gamesPlayed": "2704",
+    "goals": "3972",
+    "goalsAgainst": "4128",
+    "cleanSheets": "2654",
+    "goalsPerGame": "1.47",
+    "goalsAgainstPerGame": "1.53",
+    "reputationlevel": "10",
+    "gamesPlayedPlayoff": "0",
+    "reputationtier": "3",
+    "bestFinishGroup": "6",
+    "clubName": "Dark Ranger",
+    "clubId": "1195673",
+    "currentDivision": "6",
+    "clubInfo": { "name": "Dark Ranger", "clubId": 1195673, "regionId": 1163219762, "teamId": 243 },
+    "platform": "common-gen5"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "members": [
+    {
+      "name": "T3NK_Blackpearl", "gamesPlayed": "5", "winRate": "60", "goals": "16", "assists": "6",
+      "cleanSheetsDef": "0", "cleanSheetsGK": "0", "shotSuccessRate": "61", "passesMade": "121",
+      "passSuccessRate": "87", "ratingAve": "9.4", "tacklesMade": "5", "tackleSuccessRate": "71",
+      "proName": "J. Koster", "proPos": "25", "proStyle": "0", "proHeight": "194", "proNationality": "34",
+      "proOverall": "79", "proOverallStr": "79", "manOfTheMatch": "4", "redCards": "0",
+      "prevGoals": "1", "prevGoals1": "1", "prevGoals2": "8", "prevGoals3": "2", "prevGoals4": "2",
+      "prevGoals5": "3", "prevGoals6": "0", "prevGoals7": "0", "prevGoals8": "0", "prevGoals9": "0",
+      "prevGoals10": "0", "favoritePosition": "forward"
+    },
+    {
+      "name": "Kale_Karel10", "gamesPlayed": "2", "winRate": "50", "goals": "2", "assists": "2",
+      "cleanSheetsDef": "0", "cleanSheetsGK": "0", "shotSuccessRate": "40", "passesMade": "45",
+      "passSuccessRate": "75", "ratingAve": "8.4", "tacklesMade": "4", "tackleSuccessRate": "11",
+      "proName": "I. ligamentless", "proPos": "14", "proStyle": "0", "proHeight": "180", "proNationality": "7",
+      "proOverall": "76", "proOverallStr": "76", "manOfTheMatch": "0", "redCards": "0",
+      "prevGoals": "0", "prevGoals1": "0", "prevGoals2": "2", "prevGoals3": "0", "prevGoals4": "0",
+      "prevGoals5": "0", "prevGoals6": "0", "prevGoals7": "0", "prevGoals8": "0", "prevGoals9": "0",
+      "prevGoals10": "0", "favoritePosition": "midfielder"
+    }
+  ],
+  "positionCount": { "midfielder": 1, "goalkeeper": 0, "forward": 1, "defender": 0 }
+}
